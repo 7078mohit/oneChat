@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--ye normal light theme isme change kiiya hai ok  or colors dale hai ye ok  -->
+    <style name="Theme.ChattingAppScreens" parent="Theme.AppCompat.DayNight" />
+
+</resources>
