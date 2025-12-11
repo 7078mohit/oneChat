@@ -14,6 +14,7 @@ data class MergedModel(
     val isGroup: Boolean = false,
     val groupName: String = "",
     val groupImageUrl: String = "",
+    val messageId : String = ""
     ){
 
      constructor() : this(
@@ -29,7 +30,8 @@ data class MergedModel(
          unreadCount = emptyMap(),
          isGroup = false,
          groupName = "",
-         groupImageUrl = ""
+         groupImageUrl = "",
+         messageId = ""
      )
 
     fun toMap() : Map<String , Any>{
@@ -46,7 +48,8 @@ data class MergedModel(
             "unreadCount" to unreadCount,
             "isGroup" to isGroup,
             "groupName" to groupName,
-            "groupImageUrl" to groupImageUrl
+            "groupImageUrl" to groupImageUrl,
+            "messageId" to messageId
         )
     }
 

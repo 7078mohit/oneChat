@@ -122,23 +122,7 @@ fun EditProfileScreen(snackbarHostState: SnackbarHostState , navHostController: 
 
     Column(modifier = Modifier.fillMaxSize()) {
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = {navHostController.popBackStack()}) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "back")
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                "Edit Profile",
-                fontSize = 25.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()

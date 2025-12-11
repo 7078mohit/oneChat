@@ -13,6 +13,7 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.database.values
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -29,6 +30,32 @@ class ChatRepoImpl(
     private val firebaseStorage: FirebaseStorage
 ) : ChatRepository {
 
+    override suspend fun isPopUpShowed(
+        chatId: String,
+        messageId: String
+    ): Boolean {
+        val snapshot = firebaseDatabase.getReference("messages").child(chatId).child(messageId)
+            .child("isPopUpShowed").get().await()
+        return snapshot.getValue(Boolean::class.java) ?: false
+        Log.d("IS_POPUP_SHOWED","${snapshot.getValue(Boolean::class.java) ?: false}")
+    }
+
+
+    override suspend fun popUpRead(
+        chatId: String,
+        messageId: String
+    ){
+        firebaseDatabase.getReference("messages").child(chatId).child(messageId)
+            .child("isPopUpShowed").setValue(true).addOnSuccessListener {
+                Log.d("POPUP_DEBUG", "Popup marked true")
+            }
+            .addOnFailureListener {
+                Log.d("POPUP_DEBUG", "Failed to set popup: ${it.message}")
+            }
+            .await()
+    }
+
+
     override suspend fun getChat(userId: String): Flow<Result<List<MergedModel>>> = callbackFlow {
         val listener = firebaseDatabase.getReference("User_chats").child(userId)
             .addValueEventListener(object : ValueEventListener {
@@ -36,9 +63,9 @@ class ChatRepoImpl(
                 override fun onDataChange(snapshot: DataSnapshot) {
                     launch {
                         try {
-
                             val chatModelList = snapshot.children.mapNotNull { snap ->
-                                snap.getValue(ChatModel::class.java)
+                                val map = snap.value as Map<String, Any> ?: emptyMap()
+                                ChatModel.mapToChat(map)
                             }
 
                             val mergedModelList = withContext(Dispatchers.IO) {
@@ -102,6 +129,7 @@ class ChatRepoImpl(
             isGroup = chatModel.isGroup,
             groupName = chatModel.groupName,
             groupImageUrl = chatModel.groupImageUrl,
+            messageId = chatModel.messageId
         )
     }
 
@@ -125,7 +153,7 @@ class ChatRepoImpl(
                 groupName = groupName,
                 createdBy = participants.firstOrNull() ?: "",
                 createdAt = time,
-                unreadCount =  defaultUnreadCount
+                unreadCount = defaultUnreadCount
             )
 
             firebaseDatabase.getReference("chats").child(chatId).setValue(chat.toMap()).await()
@@ -163,10 +191,10 @@ class ChatRepoImpl(
                 override fun onDataChange(snapshot: DataSnapshot) {
 
                     val messageList = snapshot.children.mapNotNull { dataSnapshot ->
-                        val map = dataSnapshot.value as Map<String, Any>
+                        val map = dataSnapshot.value as? Map<String, Any> ?: return
                         Log.d("mapdatamessage", MessageModel.mapToMessage(map).content)
                         MessageModel.mapToMessage(map)
-                    }
+                    }.sortedByDescending { it.timeStamp }
                     trySend(Result.success(messageList))
                 }
 
@@ -174,10 +202,9 @@ class ChatRepoImpl(
                     Log.d("errorrrr", error.message)
                     trySendBlocking(Result.failure(error.toException()))
                 }
-
             })
         awaitClose {
-            firebaseDatabase.getReference("message").child(chatId).removeEventListener(listener)
+            firebaseDatabase.getReference("messages").child(chatId).removeEventListener(listener)
         }
     }
 
@@ -196,20 +223,30 @@ class ChatRepoImpl(
     }
 
 
-    override suspend fun sendMessage(message: MessageModel , thumbnail : ByteArray?): Result<Boolean> {
+    override suspend fun sendMessage(
+        message: MessageModel,
+        thumbnail: ByteArray?
+    ): Result<Boolean> {
         return try {
 
+            var mediaUrl: String? = ""
             //storage me upload ki hui image
-            val mediaUrl = uploadMediaUri(message.mediaUrl)
+            if (message.mediaUrl.isNotEmpty()) {
+                mediaUrl = uploadMediaUri(message.mediaUrl)
+            }
 
-            var mediaThumbnailUrl : String? =null
-            thumbnail?.let {
-                 mediaThumbnailUrl = uploadThumbnail(it)
+            var mediaThumbnailUrl: String? = ""
+            if (thumbnail != null) {
+                mediaThumbnailUrl = uploadThumbnail(thumbnail)
             }
 
             val messageId =
                 firebaseDatabase.getReference("messages").child(message.chatId).push().key ?: ""
-            val finalMessage = message.copy(messageId = messageId, mediaUrl = mediaUrl ?: "" , mediaThumbnailUrl = mediaThumbnailUrl ?: "")
+            val finalMessage = message.copy(
+                messageId = messageId,
+                mediaUrl = mediaUrl ?: "",
+                mediaThumbnailUrl = mediaThumbnailUrl ?: ""
+            )
 
             // message add in thee message Node
             firebaseDatabase
@@ -223,6 +260,7 @@ class ChatRepoImpl(
             Log.d("chatidd", message.chatId)
 
             updateLastMessageForOuterChats(
+                messageId = messageId,
                 chatId = message.chatId,
                 senderId = message.senderId,
                 lastMessage = message.content,
@@ -239,6 +277,7 @@ class ChatRepoImpl(
 
     // update lastMessage in the OuterConnection Chats and pass the unread counts to friend
     private suspend fun updateLastMessageForOuterChats(
+        messageId: String,
         chatId: String,
         senderId: String,
         lastMessage: String,
@@ -279,7 +318,7 @@ class ChatRepoImpl(
 
             //get participantsUid  from chats rootNode
             val chatSnapshot = firebaseDatabase.getReference("chats").child(chatId).get().await()
-            val map = chatSnapshot.value as Map<String, Any>
+            val map = chatSnapshot.value as Map<String, Any> ?: emptyMap()
             val participantsUid = ChatModel.mapToChat(map).participants
 
             val unreadCount =
@@ -295,6 +334,7 @@ class ChatRepoImpl(
             }
 
             val update = mapOf(
+                "messageId" to messageId,
                 "lastMessage" to lastMessageFiltered,
                 "lastMessageTime" to timeStamp,
                 "lastMessageSenderId" to senderId,
@@ -331,7 +371,7 @@ class ChatRepoImpl(
             val snapshot = firebaseDatabase.getReference("chats").child(chatId).get().await()
 
             //change in map
-            val map = snapshot.value as Map<String, Any>
+            val map = snapshot.value as Map<String, Any> ?: emptyMap()
 
             val chatModel = ChatModel.mapToChat(map)
 
@@ -339,14 +379,13 @@ class ChatRepoImpl(
             val unreadCountMap = chatModel.unreadCount.toMutableMap()
 
             //reset unreadCounts for me
-            if ((unreadCountMap[uid] ?: 0L)  > 0L) {
+            if ((unreadCountMap[uid] ?: 0L) > 0L) {
                 unreadCountMap[uid] = 0L
             }
 
             //pass unread count to Parent Chats
             firebaseDatabase.getReference("chats").child(chatId).child("unreadCount")
                 .setValue(unreadCountMap).await()
-
 
             //pass unread Counts to both participants chats
             firebaseDatabase.getReference("User_chats").child(uid).child(chatId)
@@ -376,36 +415,37 @@ class ChatRepoImpl(
     }
 
 
-    var isReadListener : ValueEventListener? =  null
-    var unreadCountListener : ValueEventListener? = null
+    var isReadListener: ValueEventListener? = null
+    var unreadCountListener: ValueEventListener? = null
 
 
     // this fun for isRead live chatting ok
-    override fun  markIsReadAndUnreadCountResetLive(chatId : String , uid : String){
+    override fun markIsReadAndUnreadCountResetLive(chatId: String, uid: String) {
 
         //create reference
-     val isReadRef = firebaseDatabase.getReference("messages").child(chatId)
+        val isReadRef = firebaseDatabase.getReference("messages").child(chatId)
         val unreadCountRef = firebaseDatabase.getReference("chats").child(chatId)
 
 
-        unreadCountListener = object : ValueEventListener{
+        unreadCountListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-              val map = snapshot.value as? Map<String , Any>   ?: return
+                val map = snapshot.value as? Map<String, Any> ?: return
                 val chatModel = ChatModel.mapToChat(map)
                 val participants = chatModel.participants
-                val unreadCount =chatModel.unreadCount.toMutableMap()
+                val unreadCount = chatModel.unreadCount.toMutableMap()
 
-                 // resetUnread counts
-                if((unreadCount[uid] ?: 0L) > 0L){
+                // resetUnread counts
+                if ((unreadCount[uid] ?: 0L) > 0L) {
                     unreadCount[uid] = 0L
                 }
 
 
                 //set in the parent Node
-                firebaseDatabase.getReference("chats").child(chatId).child("unreadCount").setValue(unreadCount)
+                firebaseDatabase.getReference("chats").child(chatId).child("unreadCount")
+                    .setValue(unreadCount)
 
                 //set in the both childs Nodes
-                participants.forEach {  participantsId ->
+                participants.forEach { participantsId ->
                     firebaseDatabase
                         .getReference("User_chats")
                         .child(participantsId)
@@ -422,100 +462,115 @@ class ChatRepoImpl(
 
 
         //make listener
-              isReadListener = object : ValueEventListener{
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    snapshot.children.forEach {  snaps ->
-                        //get model from map
-                      val map =  snaps.value as Map<String, Any> ?: return@forEach
-                        val model = MessageModel.mapToMessage(map)
+        isReadListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                snapshot.children.forEach { snaps ->
+                    //get model from map
+                    val map = snaps.value as? Map<String, Any> ?: return
+                    val model = MessageModel.mapToMessage(map)
 
-                        //filtering the only unreadMessages
-                        if (model.receiverId == uid && !model.isRead){
-                            // finally make isRead
-                            firebaseDatabase.getReference("messages")
-                                .child(chatId)
-                                .child(model.messageId)
-                                .child("isRead")
-                                .setValue(true)
-                        }
+                    //filtering the only unreadMessages
+                    if (model.receiverId == uid && !model.isRead) {
+                        // finally make isRead
+                        firebaseDatabase.getReference("messages")
+                            .child(chatId)
+                            .child(model.messageId)
+                            .child("isRead")
+                            .setValue(true)
                     }
                 }
-                override fun onCancelled(error: DatabaseError) {}
             }
 
+            override fun onCancelled(error: DatabaseError) {}
+        }
+
         isReadListener?.let {
-           isReadRef.addValueEventListener(it )
+            isReadRef.addValueEventListener(it)
         }
         unreadCountListener?.let {
             unreadCountRef.addValueEventListener(it)
         }
     }
 
-    override fun stopIsReadLive(chatId : String){
+    override fun stopIsReadLive(chatId: String) {
         val unreadCountRef = firebaseDatabase.getReference("chats").child(chatId)
         val isReadRef = firebaseDatabase.getReference("messages").child(chatId)
         isReadListener?.let {
-        isReadRef.removeEventListener(it)
+            isReadRef.removeEventListener(it)
         }
 
         unreadCountListener?.let {
-        unreadCountRef.removeEventListener(it)
+            unreadCountRef.removeEventListener(it)
         }
 
     }
 
-    override suspend fun deleteMessage(messageId: String, chatId: String) : Boolean{
-       return try {
-           firebaseDatabase.getReference("messages").child(chatId).child(messageId).removeValue()
-               .await()
+    override suspend fun deleteMessage(messageId: String, chatId: String): Boolean {
+        return try {
+            firebaseDatabase.getReference("messages").child(chatId).child(messageId).removeValue()
+                .await()
             true
-       }catch (e: Exception){
-           e.printStackTrace()
-           false
-       }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
-    override suspend fun editMessage(messageId: String, chatId: String , newContent : String) : Boolean {
-      return try {
-          val newContentMap = mapOf(
-              "content" to newContent,
-              "isEdited" to true,
-              "editedAt" to System.currentTimeMillis()
-          )
-          firebaseDatabase.getReference("messages").child(chatId).child(messageId)
-              .updateChildren(newContentMap).await()
-          true
-      }
-      catch (e: Exception){
-          e.printStackTrace()
-          false
-      }
+    override suspend fun editMessage(
+        messageId: String,
+        chatId: String,
+        newContent: String
+    ): Boolean {
+        return try {
+            val newContentMap = mapOf(
+                "content" to newContent,
+                "isEdited" to true,
+                "editedAt" to System.currentTimeMillis()
+            )
+            firebaseDatabase.getReference("messages").child(chatId).child(messageId)
+                .updateChildren(newContentMap).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
-    override suspend fun deleteChat(chatId: String , participantsId : List<String>) : Boolean {
+    override suspend fun deleteChat(chatId: String, participantsId: List<String>): Boolean {
         return try {
             firebaseDatabase.getReference("chats").child(chatId).removeValue().await()
             participantsId.forEach {
-                firebaseDatabase.getReference("User_chats").child(it).child(chatId).removeValue().await()
+                firebaseDatabase.getReference("User_chats").child(it).child(chatId).removeValue()
+                    .await()
             }
             true
-            }catch (e: Exception){
-                e.printStackTrace()
+        } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }
 
     private suspend fun uploadThumbnail(byteArray: ByteArray): String? {
-       return try {
+        return try {
             val ref = firebaseStorage.getReference("thumbnail_${System.currentTimeMillis()}_jpg")
             ref.putBytes(byteArray).await()
             val url = ref.downloadUrl.await()
             url.toString()
-        }
-        catch (e : Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
             null
         }
+    }
+
+
+    override suspend fun saveUserToken(token: String, uid: String) {
+        try {
+            firebaseDatabase.getReference("User").child(uid).child("fcmToken").setValue(token)
+                .await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
     }
 }
 

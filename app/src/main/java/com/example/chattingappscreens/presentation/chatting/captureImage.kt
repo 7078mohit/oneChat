@@ -45,7 +45,6 @@ import java.io.File
 @Composable
 fun ClickImage(onClick:(Uri) -> Unit , onCancel : (Boolean) -> Unit){
 
-    val permission = Manifest.permission.CAMERA
     val lifecycleOwner = LocalLifecycleOwner.current
     val imageCapture = remember{ ImageCapture.Builder().build()}
     val context = LocalContext.current
@@ -53,16 +52,6 @@ fun ClickImage(onClick:(Uri) -> Unit , onCancel : (Boolean) -> Unit){
     val photoUri = FileProvider.getUriForFile(context  ,"${context.packageName}.provider", tempFile)
     var cameraSelector by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA)}
 
-
-    val permissionLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) {
-            granted ->
-        if (granted){
-            Toast.makeText(context , "Permission Granted" , Toast.LENGTH_SHORT).show()
-        }
-        else{
-            Toast.makeText(context , "Permission Denied" , Toast.LENGTH_LONG).show()
-        }
-    }
 
 
     val previewView = remember { mutableStateOf(PreviewView(context)) }
@@ -114,7 +103,6 @@ fun ClickImage(onClick:(Uri) -> Unit , onCancel : (Boolean) -> Unit){
 
             IconButton(
                 onClick = {
-                    if(ContextCompat.checkSelfPermission(context , permission) == PackageManager.PERMISSION_GRANTED){
 
                         val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
                         imageCapture.takePicture(
@@ -131,10 +119,7 @@ fun ClickImage(onClick:(Uri) -> Unit , onCancel : (Boolean) -> Unit){
 
                             }
                         )
-                    }
-                    else{
-                        permissionLauncher.launch(permission)
-                    }
+
                 }
             ) {
                 Icon(imageVector = Icons.Outlined.Camera, contentDescription = "camera" , modifier = Modifier.size(35.dp) , tint = MaterialTheme.colorScheme.surface)

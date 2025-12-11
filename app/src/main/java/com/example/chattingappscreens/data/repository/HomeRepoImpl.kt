@@ -1,5 +1,6 @@
 package com.example.chattingappscreens.data.repository
 
+import android.annotation.SuppressLint
 import com.example.chattingappscreens.ResultState
 import com.example.chattingappscreens.data.modell.ChatModel
 import com.example.chattingappscreens.data.modell.UserModel
@@ -37,6 +38,7 @@ class HomeRepoImpl(
     }
 
 
+    @SuppressLint("SuspiciousIndentation")
     override suspend fun searchUsers(name: String, myUid: String): ResultState<List<UserModel>> {
         return try {
 

@@ -80,13 +80,14 @@ fun WelcomeScreen(navHostController: NavHostController, modifier: Modifier) {
            ) {
             Text(
                 text = "New user?",
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier =Modifier.width(2.dp))
                     Text(
                         text = "Create new account",
                          style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.clickable(onClick = {
+                        fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable(onClick = {
                             navHostController.navigate(Auth.Signup.name){
                                 popUpTo(Auth.Welcome.name){
                                     inclusive = true

@@ -23,4 +23,7 @@ interface ChatRepository {
     suspend fun deleteMessage(messageId: String , chatId : String): Boolean
     suspend fun deleteChat(chatId : String , participants: List<String>) : Boolean
     suspend fun editMessage(messageId: String, chatId: String, newContent: String): Boolean
+    suspend fun saveUserToken(token: String, uid: String)
+    suspend fun isPopUpShowed(chatId: String , messageId: String ) : Boolean
+    suspend fun popUpRead(chatId: String, messageId: String)
 }

@@ -17,7 +17,8 @@ data class MessageModel(
     val replyToMessageId : String = "",
     val isForwarded : Boolean = false,
     val isEdited : Boolean = false,
-    val editedAt : Long = 0L
+    val editedAt : Long = 0L,
+    val isPopUpShowed : Boolean = false
     ){
 
     constructor() : this(
@@ -35,6 +36,7 @@ data class MessageModel(
         isForwarded = false,
         isEdited = false,
         editedAt = 0L,
+        isPopUpShowed = false
     )
 
 
@@ -53,7 +55,8 @@ data class MessageModel(
             "replyToMessageId" to replyToMessageId,
             "isForwarded" to isForwarded,
             "isEdited" to isEdited,
-            "editedAt" to editedAt
+            "editedAt" to editedAt,
+            "isPopUpShowed" to isPopUpShowed
         )
     }
 
@@ -73,7 +76,8 @@ data class MessageModel(
                 replyToMessageId = map["replyToMessageId"] as? String ?: "",
                 isForwarded = map["isForwarded"] as? Boolean ?: false,
                 isEdited = map["isEdited"] as? Boolean ?: false,
-                editedAt = map["editedAt"] as? Long ?: 0L
+                editedAt = map["editedAt"] as? Long ?: 0L,
+                isPopUpShowed = map["isPopUpShowed"] as? Boolean ?: false
             )
         }
     }

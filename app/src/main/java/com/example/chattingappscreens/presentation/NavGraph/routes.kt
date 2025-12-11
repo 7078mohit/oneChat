@@ -22,9 +22,6 @@ sealed class Out(val name : String){
     object Chatting : Out("Chatting")
     object Search : Out("Search")
     object Webview : Out("webView")            // for privacy show
-    object Call : Out("Calling")
-    object Ringing : Out("Ringing")
-    object SendRinging : Out("SendRinging")
 }
 
 sealed class Auth (val name : String) {

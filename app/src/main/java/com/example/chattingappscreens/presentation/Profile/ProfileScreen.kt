@@ -1,7 +1,12 @@
 package com.example.chattingappscreens.presentation.Profile
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,20 +27,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Logout
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -54,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -68,24 +74,23 @@ import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.example.chattingappscreens.R
-import com.example.chattingappscreens.data.modell.CallModel
 import com.example.chattingappscreens.presentation.NavGraph.Auth
 import com.example.chattingappscreens.presentation.NavGraph.Home
 import com.example.chattingappscreens.presentation.NavGraph.Route
 import com.example.chattingappscreens.viewmodel.AuthViewModel
-import com.example.chattingappscreens.viewmodel.CallViewModel
+import com.example.chattingappscreens.viewmodel.ThemeViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun ProfileScreen(
     navHostController: NavHostController,
     snackBarHostState: SnackbarHostState,
-    homeNavHostController: NavHostController
+    homeNavHostController: NavHostController,
+    modifier: Modifier,
 ) {
 
+    val themeViewModel: ThemeViewModel = koinViewModel()
     val viewModel: AuthViewModel = koinViewModel()
-    val callViewModel : CallViewModel = koinViewModel()
-
 
     val logOutState by viewModel.logoutState.collectAsState()
 
@@ -145,7 +150,8 @@ fun ProfileScreen(
         viewModel,
         navHostController = homeNavHostController,
         isLoading = logOutState.isLoading ?: false,
-        callModel = callViewModel,
+        context = context,
+        themeViewModel
     )
 }
 
@@ -161,27 +167,15 @@ fun ProfileScreenContent(
     viewModel: AuthViewModel,
     navHostController: NavHostController,
     isLoading: Boolean,
-    callModel: CallViewModel
+    context: Context,
+    themeViewModel: ThemeViewModel
 ) {
-
+    val enableThemeDialog = remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
 
 
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "Profile",
-                fontSize = 25.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
 
         Column(
             modifier = Modifier
@@ -196,9 +190,43 @@ fun ProfileScreenContent(
             ProfileRow(name = name, phone = phone, profileImage = profile, emailId = email)
 
             //menuCard
-            MenuCards(menuItems = AccountRelatedItem, navHostController)
-            MenuCards(menuItems = AppSettingItem, navHostController)
-            MenuCards(menuItems = AppSupportItem, navHostController)
+            MenuCards(
+                menuItems = AccountRelatedItem,
+                onitemClick = { navHostController.navigate(it.route) })
+            MenuCards(menuItems = AppSettingItem, onitemClick = { enableThemeDialog.value = true })
+            ShowDropDownMenu(
+                isEnabled = enableThemeDialog.value ,
+                onDismissRequest = {
+                    enableThemeDialog.value = false
+                },
+                onDarkMode = {
+                    themeViewModel.setDarkMode()
+                    enableThemeDialog.value = false
+                },
+                onLightMode = {
+                    themeViewModel.setLightMode()
+                    enableThemeDialog.value = false
+                }
+            )
+            MenuCards(
+                menuItems = AppSupportItem,
+                onitemClick = { item ->
+                    when {
+                        item.title == "About" -> {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://github.com/7078mohit/oneChat")
+                            )
+                            context.startActivity(intent)
+                        }
+
+                        item.title == "Help" -> {
+                            navHostController.navigate(
+                                Home.Help.name
+                            )
+                        }
+                    }
+                })
 
             Spacer(modifier = Modifier.weight(1f))
             ElevatedCard(
@@ -245,11 +273,12 @@ fun ProfileScreenContent(
                     }
                     ShowDialogue(
                         show = showDialog,
-                        onConfirm = { viewModel.logOut()
-                                       callModel.removeIncomingCallListener(forUid = viewModel.getCurrentUserId() ?: "" )
-                                    },
+                        onConfirm = {
+                            viewModel.logOut()
+                        },
                         onCancel = { showDialog = false },
-                        isLoading = isLoading)
+                        isLoading = isLoading
+                    )
 
                 }
             }
@@ -261,17 +290,11 @@ fun ProfileScreenContent(
 }
 
 
-//@Preview(showBackground = true, showSystemUi = true)
-//@Composable
-//fun background() {
-//    ProfileScreenContent()
-//}
-
 data class ProfileMenuItem(
     val icon: ImageVector,
     val title: String,
     val description: String? = null,
-    val route: String? = null
+    val route: String,
 )
 
 val AccountRelatedItem = listOf(
@@ -279,29 +302,21 @@ val AccountRelatedItem = listOf(
         icon = Icons.Outlined.Person,
         title = "Edit Profile",
         description = "Name, photo, and about",
-        route = Home.EditProfile.name
-    ),
-    ProfileMenuItem(
-        icon = Icons.Outlined.Lock,
-        title = "PrivacyScreen",
-        description = "Block contacts and disappearing messages",
-        route = ""
-    ),
-
-
+        route = Home.EditProfile.name,
     )
+)
 
 val AppSupportItem = listOf(
     ProfileMenuItem(
         icon = Icons.Outlined.HelpOutline,
         title = "Help",
         description = "Help center, contact us, privacy policy",
-        route = Home.Help.name
+        route = Home.Help.name,
     ),
     ProfileMenuItem(
         icon = Icons.Outlined.Info,
         title = "About",
-        description = "App version and terms",
+        description = "Github ",
         route = ""
     )
 )
@@ -310,23 +325,27 @@ val AppSupportItem = listOf(
 val AppSettingItem = listOf(
 
     ProfileMenuItem(
-        icon = Icons.Outlined.Chat,
-        title = "Chats",
-        description = "Theme, wallpapers, chat history",
-        route = ""
+        icon = Icons.Outlined.LightMode,
+        title = "Theme",
+        description = "LightMode & DarkMode",
+        route = "",
+    ),
+)
+
+val ThemeMenuItem = listOf(
+    ProfileMenuItem(
+        icon = Icons.Outlined.LightMode,
+        title = "Light Mode",
+        description = "",
+        route = "",
     ),
     ProfileMenuItem(
-        icon = Icons.Outlined.Notifications,
-        title = "Notifications",
-        description = "Message, group & call tones",
-        route = ""
-    ),
-    ProfileMenuItem(
-        icon = Icons.Outlined.Storage,
-        title = "Storage and Data",
-        description = "Network usage, auto-download",
-        route = ""
-    )
+        icon = Icons.Outlined.DarkMode,
+        title = "Dark Mode",
+        description = "",
+        route = "",
+
+        )
 )
 
 @OptIn(ExperimentalGlideComposeApi::class)
@@ -349,17 +368,19 @@ fun ProfileRow(name: String, profileImage: String, emailId: String, phone: Strin
                 model = profileImage ?: null,
                 failure = placeholder {
                     Image(
+                        modifier = Modifier.size(18.dp),
                         painter = painterResource(R.drawable.exclamation),
                         contentScale = ContentScale.Fit,
                         contentDescription = ""
                     )
                 },
                 loading = placeholder {
-                    Image(
-                        painter = painterResource(R.drawable.loadingprof),
-                        contentScale = ContentScale.Fit,
-                        contentDescription = ""
-                    )
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            trackColor = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 },
                 contentDescription = "image",
                 contentScale = ContentScale.Crop,
@@ -406,7 +427,7 @@ fun ProfileRow(name: String, profileImage: String, emailId: String, phone: Strin
 
 
 @Composable
-fun MenuCards(menuItems: List<ProfileMenuItem>, navHostController: NavHostController) {
+fun MenuCards(menuItems: List<ProfileMenuItem>, onitemClick: (ProfileMenuItem) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -453,10 +474,9 @@ fun MenuCards(menuItems: List<ProfileMenuItem>, navHostController: NavHostContro
                 Spacer(modifier = Modifier.weight(1f))
 
                 IconButton(onClick = {
-                    if (data.route?.isNotEmpty() == true) navHostController.navigate(
-                        route = data.route
-                    ) else null
-                }) {
+                    onitemClick(data)
+                }
+                ) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowRight,
                         tint = MaterialTheme.colorScheme.outline,
@@ -526,6 +546,37 @@ fun ShowDialogue(
             iconContentColor = MaterialTheme.colorScheme.error,
 
             )
+    }
+}
+
+
+@Composable
+fun ShowDropDownMenu(
+    isEnabled: Boolean,
+    onDismissRequest: () -> Unit,
+    onLightMode: () -> Unit,
+    onDarkMode: () -> Unit,
+){
+    DropdownMenu(
+        expanded = isEnabled,
+        onDismissRequest = onDismissRequest,
+        modifier = Modifier.wrapContentSize().background(color = Color.Transparent, shape = RoundedCornerShape(24.dp)),
+    ){
+        MenuCards(
+            menuItems = ThemeMenuItem,
+            onitemClick = { item ->
+                when {
+                    item.title == "Dark Mode" -> {
+                        onDarkMode.invoke()
+                    }
+
+                    item.title == "Light Mode" -> {
+                        onLightMode.invoke()
+                    }
+                }
+            }
+
+        )
     }
 
 }

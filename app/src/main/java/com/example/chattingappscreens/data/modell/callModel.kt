@@ -13,18 +13,20 @@ data class CallModel(
     val status : CallStatus = CallStatus.INITIATED,
     val startTime : Long = 0L,
     val endTime : Long = 0L,
-    val duration : Long = System.currentTimeMillis()
+    val duration : Long = System.currentTimeMillis(),
 ) {
-//    constructor() : this(
-//        callId = "",
-//        senderId = "",
-//        receiverId = "",
-//        streamId = "",
-//        timeStamp = 0L,
-//        callType = CallType.VOICE,
-//        status = CallStatus.INVITED,
-//        incoming = true
-//    )
+    constructor() : this(
+        callId = "",
+        senderId = "",
+        receiverId = "",
+        friendName = "",
+        channelName = "",
+        isVideoCall = false,
+        status = CallStatus.INITIATED,
+        startTime = 0L,
+        endTime = 0L,
+        duration  = 0L,
+    )
 //
 //    fun toMap() : Map<String, Any>{
 //        return  mapOf(

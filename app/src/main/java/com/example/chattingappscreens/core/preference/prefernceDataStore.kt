@@ -27,9 +27,10 @@ class PreferenceData( private val dataStore: DataStore<Preferences>) {
     private val USER_LAST_SEEN_KEY = stringPreferencesKey("user_lastSeen")
     private val USER_FCM_TOKEN = stringPreferencesKey("user_fcmToken")
     private val USER_LOGGED_IN = booleanPreferencesKey("logged_in")
+    private val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
 
 
-    val uid : Flow<String> = dataStore.data.map { preferences ->  preferences[USER_UID_KEY] ?: "" }    //key ke value ko live set krre hai
+    val uid : Flow<String> = dataStore.data.map { preferences ->  preferences[USER_UID_KEY] ?: "" }    //key ke value ko live get krre hai
     val name : Flow<String> = dataStore.data.map { preferences -> preferences[USER_NAME_KEY] ?: ""}
     val email : Flow<String>  = dataStore.data.map { preferences -> preferences[USER_EMAIL_KEY] ?: ""}
     val phone : Flow<String> = dataStore.data.map { preferences -> preferences[USER_PHONE_KEY] ?: "" }
@@ -38,6 +39,7 @@ class PreferenceData( private val dataStore: DataStore<Preferences>) {
     val lastSeen : Flow<String> = dataStore.data.map {preferences -> preferences[USER_LAST_SEEN_KEY] ?: "" }
     val fcmToken : Flow<String> = dataStore.data.map {preferences -> preferences[USER_FCM_TOKEN] ?: ""  }
     val loggedIn : Flow<Boolean> = dataStore.data.map { preferences -> preferences[USER_LOGGED_IN] ?: false }
+    val isDarkMode : Flow<Boolean> = dataStore.data.map { preferences -> preferences[IS_DARK_MODE] ?: false }
 
 
 
@@ -111,6 +113,12 @@ class PreferenceData( private val dataStore: DataStore<Preferences>) {
 //           preference[USER_UID_KEY] = uid
 //       }
 //    }
+
+    suspend fun setThemeMode(isDarkMode : Boolean){
+        dataStore.edit { preferences ->
+            preferences[IS_DARK_MODE] = isDarkMode
+        }
+    }
 
 
 

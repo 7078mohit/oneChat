@@ -52,6 +52,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.modifier.modifierLocalMapOf
@@ -74,6 +76,7 @@ import com.example.chattingappscreens.R
 import com.example.chattingappscreens.core.common.AnimateLottie
 import com.example.chattingappscreens.presentation.NavGraph.Home
 import com.example.chattingappscreens.presentation.NavGraph.Out
+import com.example.chattingappscreens.presentation.chatting.HomeUsersShimmer
 import com.example.chattingappscreens.viewmodel.AuthViewModel
 import com.example.chattingappscreens.viewmodel.ChatViewModel
 import com.example.chattingappscreens.viewmodel.HomeViewModel
@@ -93,17 +96,17 @@ fun searchScreen(
     val searchText by homeviewModel.searchText.collectAsState()
 
     val addChatState by chatViewModel.addChatState.collectAsStateWithLifecycle()
-
-    var isLoading by remember { mutableStateOf(false) }
-    isLoading = addChatState.isLoading
-
     val context = LocalContext.current
-
     val currentUserId = authViewModel.getCurrentUserId().takeIf { it?.isNotEmpty() == true }
-
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = LocalFocusManager.current
+    val activateFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        activateFocusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
 
     LaunchedEffect(searchStateViewModel.isError, addChatState.isError) {
@@ -135,12 +138,12 @@ fun searchScreen(
     }
 
 
-    if (addChatState.isLoading) {
+    if (addChatState.isLoading){
         Box(
 
             modifier = Modifier
                 .fillMaxSize()
-                .background(color = Color.Transparent),
+                .background(color = Color.White),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(
@@ -188,7 +191,7 @@ fun searchScreen(
                         keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Search                    // enter or search icon on the keyboard
                     ),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(28.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -200,7 +203,8 @@ fun searchScreen(
 //                            viewModel.getSearchUser(it)
                     },
                     modifier = Modifier
-                        .height(50.dp)
+                        .height(56.dp)
+                        .focusRequester(activateFocusRequester)
                         .fillMaxWidth(1f),
                     trailingIcon = {
                         IconButton(onClick = {
@@ -236,8 +240,8 @@ fun searchScreen(
             when {
 
                 searchStateViewModel.isLoading -> {
-                    item {
-                        AnimateLottie(R.raw.loadinganimationblue, "Search in progress..")
+                    items(5){
+                        HomeUsersShimmer()
                     }
                 }
 
@@ -317,11 +321,12 @@ fun UserCardSearchScreen(
                         .clip(CircleShape)
                         .border(width = 1.dp , color = MaterialTheme.colorScheme.onSurface , shape = CircleShape),
                     loading = placeholder {
-                        Image(
-                            painter = painterResource(R.drawable.loadingprof),
-                            contentScale = ContentScale.Fit,
-                            contentDescription = ""
-                        )
+                      Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center){
+                          CircularProgressIndicator(
+                              trackColor = MaterialTheme.colorScheme.surface,
+                              modifier = Modifier.size(24.dp)
+                          )
+                      }
                     },
                     contentScale = ContentScale.Crop,
                 )

@@ -1,14 +1,13 @@
 package com.example.chattingappscreens.core.di
 
-import com.example.agoracallapp.data.agora.AgoraManager
+import com.example.chattingappscreens.core.common.NetworkObserver
+import com.example.chattingappscreens.core.common.OnlineStatusManager
 import com.example.chattingappscreens.core.preference.PreferenceData
 import com.example.chattingappscreens.core.preference.dataStore
 import com.example.chattingappscreens.data.repository.AuthRepoImpl
-import com.example.chattingappscreens.data.repository.CallRepoImpl
 import com.example.chattingappscreens.data.repository.ChatRepoImpl
 import com.example.chattingappscreens.data.repository.HomeRepoImpl
 import com.example.chattingappscreens.domain.repository.AuthRepository
-import com.example.chattingappscreens.domain.repository.CallRepository
 import com.example.chattingappscreens.domain.repository.ChatRepository
 import com.example.chattingappscreens.domain.repository.HomeRepository
 import com.example.chattingappscreens.domain.usecase.Auth.DeleteUserUseCase
@@ -26,35 +25,38 @@ import com.example.chattingappscreens.domain.usecase.Chat.EditMessageUseCase
 import com.example.chattingappscreens.domain.usecase.Chat.GetChatUseCase
 import com.example.chattingappscreens.domain.usecase.Chat.GetFriendByUidUseCase
 import com.example.chattingappscreens.domain.usecase.Chat.GetMessageUseCase
+import com.example.chattingappscreens.domain.usecase.Chat.IsPopUpShowed
 import com.example.chattingappscreens.domain.usecase.Chat.OfflineMarkUnreadCountAndIsReadUseCase
 import com.example.chattingappscreens.domain.usecase.Chat.OnlineMarkUnreadCountAndIsReadUseCase
+import com.example.chattingappscreens.domain.usecase.Chat.PopUpRead
+import com.example.chattingappscreens.domain.usecase.Chat.SaveTokenUseCase
 import com.example.chattingappscreens.domain.usecase.Chat.SendMessageUseCase
 import com.example.chattingappscreens.domain.usecase.Chat.StopIsReadLiveUseCase
 import com.example.chattingappscreens.domain.usecase.Home.GetAllUsersUserCase
 import com.example.chattingappscreens.domain.usecase.Home.GetUserByIdUseCase
 import com.example.chattingappscreens.domain.usecase.Home.SearchUserUseCase
 import com.example.chattingappscreens.viewmodel.AuthViewModel
-import com.example.chattingappscreens.viewmodel.CallViewModel
 import com.example.chattingappscreens.viewmodel.ChatViewModel
 import com.example.chattingappscreens.viewmodel.HomeViewModel
 import com.example.chattingappscreens.viewmodel.SharedViewModel
+import com.example.chattingappscreens.viewmodel.ThemeViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
-import com.example.chattingappscreens.BuildConfig
-import org.koin.core.module.dsl.viewModel
+
 
 
 val RepoModules = module {
         singleOf(::AuthRepoImpl){bind<AuthRepository>()}
         singleOf(::HomeRepoImpl){bind<HomeRepository>()}
         singleOf(::ChatRepoImpl){bind<ChatRepository>()}
-        singleOf(::CallRepoImpl){bind<CallRepository>()}
+       // singleOf(::CallRepoImpl){bind<CallRepository>()}
     }
 
     val AuthUseCaseModules = module {
@@ -86,23 +88,9 @@ val RepoModules = module {
         factory { DeleteChatUseCase(get()) }
         factory { EditMessageUseCase(get()) }
         factory { DeleteMessageUseCase(get()) }
-    }
-
-//    val CallUseCaseModules = module {
-//        factory { SendCallInviteUseCase(get()) }
-//        factory { ObserveIncomingCallUseCase(get()) }
-//        factory { RemoveIncomingObserverUseCase(get()) }
-//        factory { UpdateCallStatusUseCase(get()) }
-//        factory { GetCallModelByIdUseCase(get()) }
-//    }
-
-    val agoraModule = module {
-        single {
-            AgoraManager(
-                context = androidContext().applicationContext,
-                BuildConfig.AGORA_APP_ID
-            )
-        }
+        factory { SaveTokenUseCase(get()) }
+        factory { IsPopUpShowed(get()) }
+        factory { PopUpRead(get()) }
     }
 
     val viewModelModules = module {
@@ -110,17 +98,26 @@ val RepoModules = module {
         viewModelOf(::HomeViewModel)
         viewModelOf(::ChatViewModel)
         viewModelOf(::SharedViewModel)
-        viewModelOf(::CallViewModel)
+        viewModelOf(::ThemeViewModel)
     }
 
     val firebaseModules = module {
         single { FirebaseAuth.getInstance() }
         single { FirebaseDatabase.getInstance() }
         single { FirebaseStorage.getInstance() }
+        single { FirebaseMessaging.getInstance() }
     }
 
     val preferenceModule = module {
         single{androidContext().dataStore}
         single { PreferenceData(get()) }
+    }
+
+    val onlineStatusManagerModule = module{
+        factory { (uid:String) -> OnlineStatusManager(get(),uid)  }
+    }
+
+    val networkObserverModule = module {
+        single { NetworkObserver(get()) }
     }
 

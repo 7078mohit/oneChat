@@ -4,14 +4,15 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,13 +23,26 @@ import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,25 +53,22 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.Icons.Outlined
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddAlert
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.StopCircle
-import androidx.compose.material.icons.filled.VideoCall
-import androidx.compose.material.icons.outlined.AttachFile
-import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.SpatialAudio
+import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,7 +78,10 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -75,7 +89,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -94,7 +107,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -109,43 +121,55 @@ import com.bumptech.glide.integration.compose.GlideImage
 import com.bumptech.glide.integration.compose.placeholder
 import com.example.chattingappscreens.R
 import com.example.chattingappscreens.core.utils.bitmaptobytearray
-import com.example.chattingappscreens.core.utils.exactTime
 import com.example.chattingappscreens.core.utils.getMIMEType
 import com.example.chattingappscreens.core.utils.getThumbnail
 import com.example.chattingappscreens.core.utils.uriSizeInMb
 import com.example.chattingappscreens.data.modell.CallModel
 import com.example.chattingappscreens.data.modell.CallStatus
-import com.example.chattingappscreens.data.modell.CallType
 import com.example.chattingappscreens.data.modell.MessageModel
 import com.example.chattingappscreens.data.modell.MessageType
-import com.example.chattingappscreens.presentation.NavGraph.Out
-import com.example.chattingappscreens.viewmodel.CallViewModel
+import com.example.chattingappscreens.data.modell.UserModel
+import com.example.chattingappscreens.presentation.NavGraph.ChatStateManager
+import com.example.chattingappscreens.presentation.NavGraph.ChattingTopBar
 import com.example.chattingappscreens.viewmodel.ChatViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionStatus
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.accompanist.permissions.rememberPermissionState
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import java.io.File
-import java.util.UUID
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class,
+    ExperimentalPermissionsApi::class
+)
 @Composable
 fun ChattingScreen(
+    userName: String,
+    profile: String,
     navHostController: NavHostController,
     modifier: Modifier,
     uid: String,
     chatId: String,
-    onVideoCall:(CallModel) -> Unit,
-    onVoiceCall:(CallModel) -> Unit
 ) {
+
+
+    DisposableEffect(Unit) {
+        ChatStateManager.currentChatId = chatId
+        onDispose {
+            ChatStateManager.currentChatId = null
+        }
+    }
 
 
     val firebaseAuth: FirebaseAuth = koinInject()
     val chatViewModel: ChatViewModel = koinViewModel()
-    val callViewModel: CallViewModel = koinViewModel()
-
-    var incomingCallIsCome by remember { mutableStateOf<Boolean?>(false) }
 
     val currentUserId = firebaseAuth.currentUser?.uid ?: ""
 
@@ -153,33 +177,22 @@ fun ChattingScreen(
     val getFriendByIdState by chatViewModel.getFriendByUidState.collectAsState()
     val getMessageState by chatViewModel.getMessageState.collectAsStateWithLifecycle()
     val sendMessageState by chatViewModel.sendMessageState.collectAsState()
-
     val deleteMessageState by chatViewModel.deleteMessageState.collectAsState()
     val editMessageState by chatViewModel.editMessageState.collectAsState()
-
-
     val friendModel = getFriendByIdState.isSuccess
     val chatMessages = getMessageState.isSuccess
-
-    Log.d("chatmessage", "${chatMessages?.size}")
-    Log.d("friendModel", "${friendModel?.name}, ${friendModel?.email}")
-
-
     var messageState by remember { mutableStateOf<String?>(null) }
     var selectedVisualMedia by remember { mutableStateOf<List<MessageModel>>(emptyList()) }
     val lazyState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-
     var mediaRecorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var outputVoice by remember { mutableStateOf<Uri?>(null) }
     var recording by remember { mutableStateOf(false) }
     var currentVoiceFile by remember { mutableStateOf<File?>(null) }
     var recordDuration by remember { mutableIntStateOf(0) }
-
     var compressedImage by remember { mutableStateOf<Uri?>(null) }
     var openCamera by remember { mutableStateOf(false) }
-
     var selectedMessage by remember { mutableStateOf<MessageModel?>(null) }
     var isEdit by remember { mutableStateOf(false) }
     var listOfEdit = listOf(
@@ -209,12 +222,8 @@ fun ChattingScreen(
 
     )
 
-
-
-
     if (selectedMessage != null) {
-
-        if (isEdit && selectedMessage != null) {
+        if (isEdit) {
             Editdialog(
                 onDismiss = {
                     selectedMessage = null
@@ -222,104 +231,24 @@ fun ChattingScreen(
                 },
                 title = "Chats Edit",
                 data = listOfEdit
-
             )
         }
     }
 
-    // for calling if call is come or call was accepted
 
-//    LaunchedEffect(incomingCallModelState) {
-//        if (incomingCallModelState != null) {
-//            if (incomingCallModelState?.receiverId == currentUserId ) {
-//                Log.d("incomingCall", "${incomingCallModelState!!.status}")
-//                incomingCallIsCome = true
-//            }
-//
-//        }
-//    }
-
-//    if (incomingCallIsCome == true) {
-//
-//
-//        AlertDialog(
-//            onDismissRequest = {
-//                incomingCallModelState = null
-//                incomingCallIsCome = false
-//            },
-//            confirmButton = {
-//
-//                Button(
-//                    onClick = {
-//                        if (incomingCallModelState != null) {
-//
-//                            //  update Status
-//                            callViewModel.acceptCallStatus(
-//                                callModel = incomingCallModelState!!
-//                            )
-//
-//                            //navigation
-//                            navHostController.navigate(Out.ZegoCall.name)
-//
-//                        }
-//
-//                    }, colors = ButtonDefaults.buttonColors(
-//                        containerColor = Color.Green,
-//                        contentColor = MaterialTheme.colorScheme.onSurface
-//                    )
-//                ) {
-//                    Text("Accept", style = MaterialTheme.typography.labelMedium)
-//                }
-//            },
-//            dismissButton = {
-//
-//                Button(
-//                    onClick = {
-//                        if (incomingCallModelState != null) {
-//
-//                            // status Update for reject call
-//                            callViewModel.rejectCallStatus(incomingCallModelState!!)
-//
-//                            incomingCallModelState = null
-//                            incomingCallIsCome = false
-//                        }
-//                    },
-//                    colors = ButtonDefaults.buttonColors(
-//                        containerColor = MaterialTheme.colorScheme.error,
-//                        contentColor = MaterialTheme.colorScheme.onSurface
-//                    )
-//                )
-//                {
-//                    Text("Dismiss", style = MaterialTheme.typography.labelMedium)
-//                }
-//
-//            },
-//            title = {
-//                Text(
-//                    "Incoming ${incomingCallModelState?.callType ?: "****"} call",
-//                    textAlign = TextAlign.Center,
-//                    style = MaterialTheme.typography.bodyMedium
-//                )
-//            },
-//            text = {
-//                Text(
-//                    "by ${friendModel?.name ?: "User"} \n ${friendModel?.phone ?: "01******"}",
-//                    textAlign = TextAlign.Center,
-//                    style = MaterialTheme.typography.bodyLarge
-//                )
-//            }
-//        )
-//
-//    }
-
-
-//    //ismee name hi jara hai bs friend ka baki , uid me current user ki
-//    LaunchedEffect(sendCallAcceptedModelState) {
-//        if (sendCallAcceptedModelState != null) {
-//
-//            navHostController.navigate(Out.ZegoCall.name)
-//        }
-//    }
+    LaunchedEffect(chatMessages?.size) {
+        if (!chatMessages.isNullOrEmpty()) {
+            lazyState.scrollToItem(0)
+        }
+    }
+    LaunchedEffect(sendMessageState.isSuccess == true || sendMessageState.isLoading == true) {
+        if (sendMessageState.isSuccess == true) {
+            lazyState.animateScrollToItem(0)
+        }
+        if (sendMessageState.isLoading == true) {
+            lazyState.animateScrollToItem(1)
+        }
+    }
 
 
     LaunchedEffect(deleteMessageState.isSuccess == true || editMessageState.isSuccess == true) {
@@ -337,10 +266,8 @@ fun ChattingScreen(
             Toast.makeText(context, "Edited", Toast.LENGTH_SHORT).show()
             chatViewModel.resetDeleteAndEditStates()
             listOfEdit = emptyList()
-
         }
     }
-
 
     DisposableEffect(chatId) {
         chatViewModel.offlineReadMessageAndReadCount(chatId = chatId, uid = currentUserId)
@@ -351,23 +278,10 @@ fun ChattingScreen(
         }
     }
 
-
     LaunchedEffect(uid.isNotEmpty() || chatId.isNotEmpty()) {
         chatViewModel.getFriendById(uid)
         chatViewModel.getMessage(chatId = chatId)
     }
-
-    LaunchedEffect(
-        chatMessages?.size != null,
-        sendMessageState.isLoading == true,
-        sendMessageState.isSuccess == true
-    ) {
-        if (!chatMessages.isNullOrEmpty()) {
-            lazyState.animateScrollToItem(chatMessages.size.minus(1))
-        }
-    }
-
-
 
     LaunchedEffect(getMessageState.isError != null || getFriendByIdState.isError != null || sendMessageState.isError != null) {
         if (getMessageState.isError != null) {
@@ -380,6 +294,7 @@ fun ChattingScreen(
             Toast.makeText(context, getFriendByIdState.isError, Toast.LENGTH_LONG).show()
         }
         if (sendMessageState.isError != null) {
+            // ye hai bro error today 08/10/2025
             Log.d("sendmessageState", sendMessageState.isError.toString())
 
             Toast.makeText(context, sendMessageState.isError, Toast.LENGTH_LONG).show()
@@ -471,55 +386,8 @@ fun ChattingScreen(
     }
 
 
-    val tempFile = File(context.cacheDir, "captured_Image_${System.currentTimeMillis()}.jpg")
-//
-//    fun createImageUri(context: Context): Uri? {
-//       return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-//
-//            val content = ContentValues().apply {
-//                put(MediaStore.Images.Media.TITLE, "captured_Image_${System.currentTimeMillis()}.jpg")
-//                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-//                put(MediaStore.Images.Media.RELATIVE_PATH , "Pictures/MyApp")
-//            }
-//
-//            context.contentResolver.insert(
-//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-//                content
-//            )
-//        } else{
-//            FileProvider.getUriForFile(context ,"${context.packageName}.provider", tempFile)
-//        }
-    //  }
-
-
-//    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-//        contract = ActivityResultContracts.RequestPermission()
-//    ) { granted ->
-//        if (granted) {
-//            Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
-//        } else {
-//            Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
-//        }
-//    }
-
-
-//    val takePictureLauncher =
-//        rememberLauncherForActivityResult(contract = ActivityResultContracts.TakePicture()) { clicked ->
-//            if (clicked) {
-//
-//                coroutineScope.launch(Dispatchers.IO) {
-//                    val uri = createImageUri(context)
-//                    uri?.let {
-//                        val compressedImageInVariable =
-//                            compressedImageWithUri(context = context, uri = uri)
-//
-//                        withContext(Dispatchers.Main) {
-//                            compressedImage = compressedImageInVariable
-//                        }
-//                    }
-//                }
-//            }
-//        }
+    val audioPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
 
     val pickVisualMediaLauncher =
@@ -584,30 +452,23 @@ fun ChattingScreen(
 
     val multipleVisualMediaPermission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            arrayOf(
+            listOf(
                 Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
                 Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO,
                 Manifest.permission.READ_MEDIA_IMAGES
             )
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
+            listOf(
                 Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO,
                 Manifest.permission.READ_MEDIA_IMAGES
             )
         } else {
-            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
 
-    val visualMediaLauncherPermission =
-        rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestMultiplePermissions()) { granted ->
-            if (granted.values.all { it }) {
-                Toast.makeText(context, "All Permissions Granted ✅", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Some Permissions Dismiss ❌", Toast.LENGTH_SHORT).show()
-            }
-        }
-
+    val visualMediaPermissionState =
+        rememberMultiplePermissionsState(remember { multipleVisualMediaPermission })
 
     val recordAudioPermissionLauncher =
         rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { granted ->
@@ -620,15 +481,7 @@ fun ChattingScreen(
         }
 
 
-    if (getMessageState.isLoading == true || getFriendByIdState.isLoading == true) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
-        {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                trackColor = MaterialTheme.colorScheme.primary
-            )
-        }
-    }
+
 
 
 
@@ -644,576 +497,572 @@ fun ChattingScreen(
         )
     } else {
 
-        Column(
-            modifier = modifier.fillMaxSize()
+        Scaffold(
+            topBar = {
+                //top Bar
+                ChattingTopBar(
+                    profile = profile,
+                    name = userName,
+                    navHostController = navHostController,
+                    friendModel = friendModel ?: UserModel(),
+
+                    )
+            },
         )
-        {
-            //topbar
-            Row(
+        { innerPadding ->
+
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
 
-                ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(onClick = { navHostController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack, contentDescription = "back",
-                            tint = MaterialTheme.colorScheme.onSurface,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    if (ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.POST_NOTIFICATIONS
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(color = Color.Gray)
+                                .padding(vertical = 2.dp, horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Notification is Disabled",
+                                fontSize = 12.sp,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Icon(
+                                painter = painterResource(R.drawable.notificationicon),
+                                modifier = Modifier.size(18.dp),
+                                contentDescription = "notfication Icon",
+                                // tint = Color.Yellow.copy(alpha = 0.8f)
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            Text(
+                                text = "Enable",
+                                fontSize = 12.sp,
+                                color = Color.White,
+                                modifier = Modifier
+                                    .clickable(onClick = {
+                                        var intent = Intent().apply {
+                                            action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                                            putExtra(
+                                                Settings.EXTRA_APP_PACKAGE,
+                                                context.packageName
+                                            )
+
+                                        }
+                                        context.startActivity(intent)
+                                    })
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                        shape = RoundedCornerShape(24.dp)
+                                    )
+                                    .padding(vertical = 2.dp, horizontal = 12.dp)
+
+                            )
+
+                        }
+                    }
+                }
+                if (chatMessages.isNullOrEmpty()) {
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    )
+                    {
+                        Text(
+                            modifier = Modifier.fillMaxWidth(),
+                            text = "Start Chatting",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
-                    if (friendModel?.profile?.isNotEmpty() == true) {
-                        GlideImage(
-                            model = friendModel?.profile ?: null,
-                            contentDescription = "image",
-                            loading = placeholder {
-                                Image(
-                                    painter = painterResource(R.drawable.loadingprof),
-                                    contentScale = ContentScale.Fit,
-                                    contentDescription = ""
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(horizontal = 14.dp),
+                        reverseLayout = true,
+                        state = lazyState,
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                        // verticalArrangement = Arrangement.Bottom
+                    ) {
+                        if (sendMessageState.isLoading == true) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    Text(
+                                        text = "Sending...",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 15.sp
+                                    )
+                                }
+                            }
+                        }
+                        if (getMessageState.isLoading == true || getFriendByIdState.isLoading == true) {
+                            item {
+//                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center)
+//                            {
+                                UserChatShimmer()
+                                // }
+                            }
+                        } else {
+                            items(chatMessages) { messageModel ->
+                                MessageCard(
+                                    messageModel,
+                                    context = context,
+                                    firebaseAuth = firebaseAuth,
+                                    friendImage = friendModel?.profile ?: "",
+                                    isRead = messageModel.isRead,
+                                    selectedMessage = { selectedMessage = it },
+                                    isEdit = { isEdit = it }
                                 )
-                            },
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    shape = CircleShape
-                                ),
-                            contentScale = ContentScale.Crop,
+                            }
 
-                            )
-                    } else {
-                        Image(
-                            painter = painterResource(R.drawable.profilefilled),
-                            contentDescription = "null",
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
 
-                    }
-                    Column(horizontalAlignment = Alignment.Start) {
-                        Text(
-                            modifier = Modifier.widthIn(100.dp, 200.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            text = friendModel?.name ?: "",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 18.sp,
-                            maxLines = 1,
-                            style = MaterialTheme.typography.bodyLarge,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = if (friendModel?.isOnline == true) "online" else exactTime(
-                                friendModel?.lastSeen ?: 0L
-                            ),
-                            color = if (friendModel?.isOnline == true) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = if (friendModel?.isOnline == true) 14.sp else 12.sp,
-                            fontWeight = if (friendModel?.isOnline == true) FontWeight.Bold else FontWeight.Medium,
-                            // color manage when backend connect
-                            // style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    //  horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    IconButton(
-                        onClick = {
-                            val callModel = CallModel(
-                                callId = "callId_${System.currentTimeMillis()}",
-                                senderId = currentUserId,
-                                receiverId = friendModel?.uid ?: "",
-                                status = CallStatus.RINGING,
-                                isVideoCall = false,
-                                friendName = friendModel?.name ?: ""
-                            )
-
-                            onVoiceCall(callModel)
-
-                            //send call voice
-                            callViewModel.sendCallInvitation(
-                                callModel = callModel
-                            )
-
-                        },
-                        modifier = Modifier.size(45.dp)
-                    ) {
-                        Icon(
-                            Outlined.Call, contentDescription = "call",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    IconButton(
-                        onClick = {
-
-                            val callModel = CallModel(
-                                callId = "callId_${System.currentTimeMillis()}",
-                                senderId = currentUserId,
-                                friendName = friendModel?.name ?: "",
-                                receiverId = friendModel?.uid ?: "",
-                                status = CallStatus.RINGING,
-                                isVideoCall = true
-                            )
-
-                            onVideoCall(callModel)
-
-                            //send videoCall
-                            callViewModel.sendCallInvitation(
-                                callModel = callModel
-                            )
-                        },
-                        modifier = Modifier.size(45.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.VideoCall, contentDescription = "videoCall",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
+                        }
                     }
                 }
 
-            }
-
-
-            if (chatMessages.isNullOrEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
                 ) {
-                    Text(text = "Start chatting\non OneChat", fontWeight = FontWeight.SemiBold)
+                    //textfield
+                    OutlinedTextField(
+                        maxLines = 1,
+                        keyboardActions = KeyboardActions(
+                            onSend = {
 
-                }
-            } else {
-                //middle chat
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 14.dp),
-                    state = lazyState,
-                    verticalArrangement = Arrangement.Bottom
-                ) {
-
-                    items(chatMessages ?: emptyList()) { messageModel ->
-                        MessageCard(
-                            messageModel,
-                            context = context,
-                            firebaseAuth = firebaseAuth,
-                            friendImage = friendModel?.profile ?: "",
-                            isRead = messageModel?.isRead ?: false,
-                            selectedMessage = { selectedMessage = it },
-                            isEdit = { isEdit = it }
-                        )
-                    }
-                    item {
-                        if (sendMessageState.isLoading == true) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(10.dp),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                Text(
-                                    text = "Sending...",
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 15.sp
-                                )
                             }
-                        }
-                    }
-                }
-            }
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = ImeAction.Unspecified,
+                            showKeyboardOnFocus = true,
+                            autoCorrectEnabled = true
+                        ),
+                        value = messageState ?: "",
+                        onValueChange = { messageState = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(
+                                0.7.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(34.dp)
+                            ),
+                        shape = RoundedCornerShape(34.dp),
+                        placeholder = {
+                            Text(
+                                text = "Write your message",
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
+                            focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+                            focusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.outline,
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.outline,
+                        ),
+                        leadingIcon = {
+                            Box(modifier = Modifier.padding(start = 8.dp)) {
 
-
-            //bottom
-            OutlinedTextField(
-                maxLines = 1,
-                keyboardActions = KeyboardActions(
-                    onSend = {
-
-                    }
-                ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Go,
-                    showKeyboardOnFocus = true,
-                    autoCorrectEnabled = true
-                ),
-                value = messageState ?: "",
-                onValueChange = { messageState = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(text = "Write your message") },
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
-                    focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
-                    focusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    unfocusedPlaceholderColor = MaterialTheme.colorScheme.outline,
-                    focusedPlaceholderColor = MaterialTheme.colorScheme.outline,
-                ),
-                leadingIcon = {
-                    Box(modifier = Modifier.padding(start = 12.dp)) {
-
-                        when {
-                            compressedImage != null -> {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 70.dp, height = 80.dp)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            compressedImage = null
-                                        },
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(22.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Close,
-                                            tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(20.dp),
-                                            contentDescription = "clear "
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(52.dp)
-                                            .align(Alignment.BottomStart)
-                                    ) {
-                                        Image(
-                                            painter = rememberAsyncImagePainter(compressedImage),
-                                            contentDescription = "show in the field",
+                                when {
+                                    compressedImage != null -> {
+                                        Box(
                                             modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .border(
-                                                    shape = RoundedCornerShape(12.dp),
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    width = 0.4.dp
+                                                .size(width = 70.dp, height = 80.dp)
+                                                .padding(
+                                                    horizontal = 8.dp,
+                                                    vertical = 4.dp
                                                 )
-                                                .align(Alignment.Center),
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                    }
-                                }
-                            }
-
-                            outputVoice != null -> {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 70.dp, height = 80.dp)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            outputVoice = null
-
-                                        },
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(22.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Close,
-                                            tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(20.dp),
-                                            contentDescription = "clear "
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(52.dp)
-                                            .align(Alignment.BottomStart)
-                                    ) {
-
-                                        Image(
-                                            imageVector = Outlined.SpatialAudio,
-                                            contentDescription = "show in the field",
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(Color.White)
-                                                .border(
-                                                    shape = RoundedCornerShape(12.dp),
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    width = 0.4.dp
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    compressedImage = null
+                                                },
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(22.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Close,
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(20.dp),
+                                                    contentDescription = "clear "
                                                 )
-                                                .align(Alignment.Center),
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                    }
-                                }
-                            }
-
-                            selectedVisualMedia.isEmpty() -> {
-                                IconButton(onClick = {
-                                    val granted = multipleVisualMediaPermission.all {
-                                        ContextCompat.checkSelfPermission(
-                                            context,
-                                            it
-                                        ) == PackageManager.PERMISSION_GRANTED
-                                    }
-                                    if (granted) {
-                                        pickVisualMediaLauncher.launch(
-                                            arrayOf(
-                                                "image/*",
-                                                "application/*",
-                                                "video/*",
-                                                "audio/*"
-                                            )
-                                        )
-
-
-                                    } else {
-                                        visualMediaLauncherPermission.launch(
-                                            multipleVisualMediaPermission
-                                        )
-                                    }
-                                }) {
-                                    Icon(Icons.Default.AttachFile, contentDescription = "file")
-                                }
-                            }
-
-                            else -> {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 70.dp, height = 80.dp)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            selectedVisualMedia = emptyList()
-                                        },
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(22.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Close,
-                                            tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(20.dp),
-                                            contentDescription = "clear "
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .size(52.dp)
-                                            .align(Alignment.BottomStart)
-                                    ) {
-                                        Image(
-                                            imageVector = Outlined.AttachFile,
-                                            contentDescription = "show in the field",
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(Color.White)
-                                                .border(
-                                                    shape = RoundedCornerShape(12.dp),
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    width = 0.4.dp
-                                                )
-                                                .align(Alignment.Center),
-                                            contentScale = ContentScale.Crop,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                trailingIcon = {
-                    Box(modifier = Modifier.padding(end = 12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (messageState.isNullOrBlank() && compressedImage == null && selectedVisualMedia.isEmpty() && outputVoice == null) {
-
-                                //CameraButton
-                                IconButton(
-                                    onClick = {
-                                        openCamera = true
-                                    }
-                                ) {
-                                    Icon(Outlined.CameraAlt, contentDescription = "camera")
-                                }
-
-
-                                //Recording Button
-                                if (recording) {
-                                    IconButton(onClick = {
-                                        stopRecording()
-                                        Toast.makeText(
-                                            context,
-                                            "Stop Recording",
-                                            Toast.LENGTH_SHORT
-                                        )
-                                            .show()
-//
-                                    }) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Icon(
-                                                Icons.Default.StopCircle,
-                                                contentDescription = "Stop"
-                                            )
-                                            if (recording) {
-                                                Text(
-                                                    text = "${recordDuration}s",
-                                                    fontSize = 10.sp,
-                                                    color = Color.Red
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(42.dp)
+                                                    .align(Alignment.BottomStart)
+                                            ) {
+                                                Image(
+                                                    painter = rememberAsyncImagePainter(
+                                                        compressedImage
+                                                    ),
+                                                    contentDescription = "show in the field",
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .border(
+                                                            shape = RoundedCornerShape(
+                                                                12.dp
+                                                            ),
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                            width = 0.4.dp
+                                                        )
+                                                        .align(Alignment.Center),
+                                                    contentScale = ContentScale.Crop,
                                                 )
                                             }
                                         }
                                     }
-                                } else {
-                                    IconButton(
-                                        colors = IconButtonDefaults.iconButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                                        ),
-                                        onClick = {
-                                            if (ContextCompat.checkSelfPermission(
-                                                    context,
-                                                    Manifest.permission.RECORD_AUDIO
-                                                ) == PackageManager.PERMISSION_GRANTED
+
+                                    outputVoice != null -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(width = 70.dp, height = 80.dp)
+                                                .padding(
+                                                    horizontal = 8.dp,
+                                                    vertical = 4.dp
+                                                )
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    outputVoice = null
+
+                                                },
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(22.dp)
                                             ) {
-                                                startRecording()
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Close,
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(20.dp),
+                                                    contentDescription = "clear "
+                                                )
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(42.dp)
+                                                    .align(Alignment.BottomStart)
+                                            ) {
+
+                                                Image(
+                                                    imageVector = Outlined.Audiotrack,
+                                                    contentDescription = "show in the field",
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(Color.White)
+                                                        .border(
+                                                            shape = RoundedCornerShape(
+                                                                12.dp
+                                                            ),
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                            width = 0.4.dp
+                                                        )
+                                                        .align(Alignment.Center),
+                                                    contentScale = ContentScale.Crop,
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    selectedVisualMedia.isEmpty() -> {
+                                        IconButton(onClick = {
+                                            if (visualMediaPermissionState.allPermissionsGranted) {
+
+                                                pickVisualMediaLauncher.launch(
+                                                    arrayOf(
+                                                        "image/*",
+                                                        "application/*",
+                                                        "video/*",
+                                                        "audio/*"
+                                                    )
+                                                )
+
+                                            } else {
+                                                visualMediaPermissionState.launchMultiplePermissionRequest()
+                                            }
+                                        }) {
+                                            Icon(
+                                                Icons.Default.AttachFile,
+                                                contentDescription = "file"
+                                            )
+                                        }
+                                    }
+
+                                    else -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(width = 70.dp, height = 80.dp)
+                                                .padding(
+                                                    horizontal = 8.dp,
+                                                    vertical = 4.dp
+                                                )
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    selectedVisualMedia = emptyList()
+                                                },
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(22.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Close,
+                                                    tint = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(20.dp),
+                                                    contentDescription = "clear "
+                                                )
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(42.dp)
+                                                    .align(Alignment.BottomStart)
+                                            ) {
+                                                Image(
+                                                    imageVector = Outlined.UploadFile,
+                                                    contentDescription = "show in the field",
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(Color.White)
+                                                        .border(
+                                                            shape = RoundedCornerShape(
+                                                                12.dp
+                                                            ),
+                                                            color = MaterialTheme.colorScheme.onSurface,
+                                                            width = 0.4.dp
+                                                        )
+                                                        .align(Alignment.Center),
+                                                    contentScale = ContentScale.Crop,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        trailingIcon = {
+                            Box(modifier = Modifier.padding(end = 8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (messageState.isNullOrBlank() && compressedImage == null && selectedVisualMedia.isEmpty() && outputVoice == null) {
+
+                                        //CameraButton
+                                        IconButton(
+                                            onClick = {
+                                                if (cameraPermissionState.status.isGranted) {
+                                                    openCamera = true
+                                                } else {
+                                                    cameraPermissionState.launchPermissionRequest()
+                                                }
+                                            }
+                                        ) {
+                                            Icon(
+                                                Outlined.CameraAlt,
+                                                contentDescription = "camera"
+                                            )
+                                        }
+
+
+                                        //Recording Button
+                                        if (recording) {
+                                            IconButton(onClick = {
+                                                stopRecording()
                                                 Toast.makeText(
                                                     context,
-                                                    "Recording Started",
+                                                    "Stop Recording",
                                                     Toast.LENGTH_SHORT
-                                                ).show()
-                                            } else {
-                                                recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)                      // permission request
-                                            }
-                                        })
-                                    {
-                                        Icon(Outlined.Mic, contentDescription = "Mic")
-                                    }
-                                }
-                            } else {
-                                //Send Button
-                                IconButton(onClick = {
-
-                                    coroutineScope.launch {
-                                        // image add
-                                        compressedImage?.let {
-
-                                            chatViewModel.sendMessage(
-                                                MessageModel(
-                                                    chatId = chatId,
-                                                    senderId = currentUserId,
-                                                    receiverId = friendModel?.uid ?: "",
-                                                    messageType = MessageType.IMAGE,
-                                                    mediaUrl = compressedImage.toString(),
-                                                ),
-                                                thumbnail = null
-                                            )
-                                            //content removed
-                                            compressedImage = null
-                                        }
-
-                                        //Recorded audio add
-                                        outputVoice?.let { voice ->
-
-                                            chatViewModel.sendMessage(
-                                                MessageModel(
-                                                    chatId = chatId,
-                                                    senderId = currentUserId,
-                                                    receiverId = friendModel?.uid ?: "",
-                                                    messageType = MessageType.AUDIO,
-                                                    mediaUrl = voice.toString(),
-                                                ),
-                                                thumbnail = null
-                                            )
-                                            delay(1000)
-                                            outputVoice = null
-                                        }
-
-                                        // visual media add
-                                        if (selectedVisualMedia.isNotEmpty()) {
-
-                                            selectedVisualMedia.forEach { messageModel ->
-                                                var videoUri: ByteArray? = null
-                                                val thumbnailBitmap =
-                                                    getThumbnail(
-                                                        context,
-                                                        messageModel.mediaUrl.toUri()
+                                                )
+                                                    .show()
+//
+                                            }) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Icon(
+                                                        Icons.Default.StopCircle,
+                                                        contentDescription = "Stop"
                                                     )
-                                                if (thumbnailBitmap != null) {
-                                                    videoUri = bitmaptobytearray(thumbnailBitmap)
+                                                    if (recording) {
+                                                        Text(
+                                                            text = "${recordDuration}s",
+                                                            fontSize = 10.sp,
+                                                            color = Color.Red
+                                                        )
+                                                    }
                                                 }
-                                                if (videoUri != null) {
+                                            }
+                                        } else {
+                                            IconButton(
+                                                colors = IconButtonDefaults.iconButtonColors(
+                                                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                                                ),
+                                                onClick = {
+                                                    if (
+                                                        audioPermissionState.status.isGranted
+                                                    ) {
+                                                        startRecording()
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Recording Started",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    } else {
+                                                        audioPermissionState.launchPermissionRequest()
+                                                    }
+//
+                                                })
+                                            {
+                                                Icon(
+                                                    Outlined.Mic,
+                                                    contentDescription = "Mic"
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        //Send Button
+                                        IconButton(onClick = {
+
+                                            coroutineScope.launch {
+                                                // image add
+                                                compressedImage?.let {
+
                                                     chatViewModel.sendMessage(
-                                                        messageModel,
-                                                        thumbnail = videoUri
-                                                    )
-                                                } else {
-                                                    chatViewModel.sendMessage(
-                                                        messageModel,
+                                                        MessageModel(
+                                                            chatId = chatId,
+                                                            senderId = currentUserId,
+                                                            receiverId = friendModel?.uid
+                                                                ?: "",
+                                                            messageType = MessageType.IMAGE,
+                                                            mediaUrl = compressedImage.toString(),
+                                                        ),
                                                         thumbnail = null
                                                     )
+                                                    //content removed
+                                                    compressedImage = null
                                                 }
+
+                                                //Recorded audio add
+                                                outputVoice?.let { voice ->
+
+                                                    chatViewModel.sendMessage(
+                                                        MessageModel(
+                                                            chatId = chatId,
+                                                            senderId = currentUserId,
+                                                            receiverId = friendModel?.uid
+                                                                ?: "",
+                                                            messageType = MessageType.AUDIO,
+                                                            mediaUrl = voice.toString(),
+                                                        ),
+                                                        thumbnail = null
+                                                    )
+                                                    delay(1000)
+                                                    outputVoice = null
+                                                }
+
+                                                // visual media add
+                                                if (selectedVisualMedia.isNotEmpty()) {
+
+                                                    selectedVisualMedia.forEach { messageModel ->
+                                                        var videoUri: ByteArray? = null
+                                                        val thumbnailBitmap =
+                                                            getThumbnail(
+                                                                context,
+                                                                messageModel.mediaUrl.toUri()
+                                                            )
+                                                        if (thumbnailBitmap != null) {
+                                                            videoUri =
+                                                                bitmaptobytearray(
+                                                                    thumbnailBitmap
+                                                                )
+                                                        }
+                                                        if (videoUri != null) {
+                                                            chatViewModel.sendMessage(
+                                                                messageModel,
+                                                                thumbnail = videoUri
+                                                            )
+                                                        } else {
+                                                            chatViewModel.sendMessage(
+                                                                messageModel,
+                                                                thumbnail = null
+                                                            )
+                                                        }
+                                                    }
+                                                    selectedVisualMedia = emptyList()
+                                                }
+
+                                                // text message add
+                                                if (!messageState.isNullOrBlank() && selectedMessage == null) {
+
+                                                    chatViewModel.sendMessage(
+                                                        MessageModel(
+                                                            chatId = chatId,
+                                                            senderId = currentUserId,
+                                                            receiverId = friendModel?.uid
+                                                                ?: "",
+                                                            messageType = MessageType.TEXT,
+                                                            content = messageState ?: ""
+                                                        ),
+                                                        thumbnail = null
+                                                    )
+                                                    delay(100)
+                                                    messageState = null
+
+                                                }
+
+
+                                                // EditMesssage text
+                                                if (selectedMessage != null && messageState != null) {
+                                                    chatViewModel.editMessage(
+                                                        messageId = selectedMessage!!.messageId,
+                                                        chatId = selectedMessage!!.chatId,
+                                                        newContent = messageState!!
+                                                    )
+                                                }
+
                                             }
-                                            selectedVisualMedia = emptyList()
-                                        }
-
-                                        // text message add
-                                        if (!messageState.isNullOrBlank() && selectedMessage == null) {
-
-                                            chatViewModel.sendMessage(
-                                                MessageModel(
-                                                    chatId = chatId,
-                                                    senderId = currentUserId,
-                                                    receiverId = friendModel?.uid ?: "",
-                                                    messageType = MessageType.TEXT,
-                                                    content = messageState ?: ""
-                                                ),
-                                                thumbnail = null
-                                            )
-
-                                            messageState = null
-
-                                            delay(3000)
-                                        }
-
-
-                                        // EditMesssage text
-                                        if (selectedMessage != null && messageState != null) {
-                                            chatViewModel.editMessage(
-                                                messageId = selectedMessage!!.messageId,
-                                                chatId = selectedMessage!!.chatId,
-                                                newContent = messageState!!
+                                        }) {
+                                            Icon(
+                                                Icons.Default.Send,
+                                                contentDescription = "sendIcon",
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                                             )
                                         }
 
                                     }
-                                }) {
-                                    Icon(
-                                        Icons.Default.Send,
-                                        contentDescription = "sendIcon",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
+
                                 }
-
                             }
-
                         }
-                    }
+                    )
                 }
-            )
+            }
         }
     }
 }
@@ -1233,8 +1082,7 @@ fun MessageCard(
 
     var selectedImageONClICK by remember { mutableStateOf<Uri?>(null) }
     var onClickVideoUri by remember { mutableStateOf<Uri?>(null) }
-    var thumbnailState by remember { mutableStateOf<Bitmap?>(null) }
-    var currentUserUid = firebaseAuth.currentUser?.uid
+    val currentUserUid = firebaseAuth.currentUser?.uid
     val fromMe = message.senderId == currentUserUid
 
 
@@ -1279,18 +1127,9 @@ fun MessageCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 4.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onLongPress = {
-                                selectedMessage(message)
-                                isEdit(true)
-                            }
-                        )
-                    },
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
                 horizontalArrangement = if (fromMe) Arrangement.End else Arrangement.Start
             ) {
-
                 if (!fromMe) {
                     Row(
                         verticalAlignment = Alignment.Top,
@@ -1302,17 +1141,39 @@ fun MessageCard(
                             model = message.mediaUrl,
                             contentDescription = "clicked Image",
                             modifier = Modifier
-                                .heightIn(200.dp, 300.dp)
-                                .widthIn(100.dp, 200.dp)
+                                .heightIn(max = 220.dp)
+                                .widthIn(max = 200.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(
-                                    width = 1.dp,
+                                    width = 0.4.dp,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     shape = RoundedCornerShape(12.dp)
                                 )
-                                .clickable(onClick = {
-                                    selectedImageONClICK = message.mediaUrl.toUri()
-                                }),
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            selectedMessage(message)
+                                            isEdit(true)
+                                        },
+                                        onTap = {
+                                            selectedImageONClICK = message.mediaUrl.toUri()
+                                        }
+                                    )
+                                },
+                            loading = placeholder {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        trackColor = MaterialTheme.colorScheme.surface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+//                                .clickable(onClick = {
+//                                })
+                            ,
                             contentScale = ContentScale.Crop
                         )
 
@@ -1323,17 +1184,36 @@ fun MessageCard(
                         model = message.mediaUrl,
                         contentDescription = "clicked Image",
                         modifier = Modifier
-                            .heightIn(200.dp, 300.dp)
-                            .widthIn(100.dp, 200.dp)
+                            .heightIn(max = 220.dp)
+                            .widthIn(max = 200.dp)
                             .border(
                                 width = 1.dp,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClick = {
-                                selectedImageONClICK = message.mediaUrl.toUri()
-                            }),
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        selectedMessage(message)
+                                        isEdit(true)
+                                    },
+                                    onTap = {
+                                        selectedImageONClICK = message.mediaUrl.toUri()
+                                    }
+                                )
+                            },
+                        loading = placeholder {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    trackColor = MaterialTheme.colorScheme.surface,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        },
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -1382,6 +1262,7 @@ fun MessageCard(
                             }
                         )
                     },
+
                 horizontalArrangement = if (fromMe) Arrangement.End else Arrangement.Start
             ) {
 
@@ -1419,15 +1300,7 @@ fun MessageCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 4.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onLongPress = {
-                                selectedMessage(message)
-                                isEdit(true)
-                            }
-                        )
-                    },
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
                 horizontalArrangement = if (fromMe) Arrangement.End else Arrangement.Start
             ) {
 
@@ -1444,7 +1317,7 @@ fun MessageCard(
                         Box(
                             modifier = Modifier
                                 .wrapContentSize()
-                                .clickable(onClick = { onClickVideoUri = message.mediaUrl.toUri() })
+                            //   .clickable(onClick = { onClickVideoUri = message.mediaUrl.toUri() })
                         ) {
 
                             if (message.mediaThumbnailUrl.isNotEmpty()) {
@@ -1461,6 +1334,28 @@ fun MessageCard(
                                             color = MaterialTheme.colorScheme.onSurface,
                                             shape = RoundedCornerShape(12.dp)
                                         )
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onLongPress = {
+                                                    selectedMessage(message)
+                                                    isEdit(true)
+                                                },
+                                                onTap = {
+                                                    onClickVideoUri = message.mediaUrl.toUri()
+                                                }
+                                            )
+                                        },
+                                    loading = placeholder {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                trackColor = MaterialTheme.colorScheme.surface,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
                                 )
                                 Icon(
                                     Icons.Default.PlayCircle,
@@ -1483,7 +1378,7 @@ fun MessageCard(
                     Box(
                         modifier = Modifier
                             .wrapContentSize()
-                            .clickable(onClick = { onClickVideoUri = message.mediaUrl.toUri() })
+                        //  .clickable(onClick = { onClickVideoUri = message.mediaUrl.toUri() })
                     ) {
                         if (message.mediaThumbnailUrl.isNotEmpty()) {
 
@@ -1499,6 +1394,28 @@ fun MessageCard(
                                         color = MaterialTheme.colorScheme.onSurface,
                                         shape = RoundedCornerShape(12.dp)
                                     )
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onLongPress = {
+                                                selectedMessage(message)
+                                                isEdit(true)
+                                            },
+                                            onTap = {
+                                                onClickVideoUri = message.mediaUrl.toUri()
+                                            }
+                                        )
+                                    },
+                                loading = placeholder {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            trackColor = MaterialTheme.colorScheme.surface,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
                             )
                             Icon(
                                 Icons.Default.PlayCircle,
@@ -1541,7 +1458,6 @@ fun MessageCard(
         MessageType.CONTACT -> TODO()
         MessageType.LOCATION -> TODO()
     }
-
 }
 
 @OptIn(ExperimentalGlideComposeApi::class)
@@ -1568,7 +1484,15 @@ fun ZoomableImage(uri: Uri) {
             .transformable(
                 state = transformableState,
             ),
-        contentScale = ContentScale.Crop
+        contentScale = ContentScale.Crop,
+//        loading = placeholder {
+//            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+//                CircularProgressIndicator(
+//                    trackColor = MaterialTheme.colorScheme.surface,
+//                    modifier = Modifier.size(24.dp)
+//                )
+//            }
+//        }
     )
 }
 
@@ -1686,11 +1610,12 @@ fun OtherUserImage(friendImage: String) {
             .border(width = 1.dp, color = MaterialTheme.colorScheme.onSurface, shape = CircleShape),
         contentScale = ContentScale.Crop,
         loading = placeholder {
-            Image(
-                painter = painterResource(R.drawable.loadingprof),
-                contentScale = ContentScale.Crop,
-                contentDescription = ""
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    trackColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         },
     )
 

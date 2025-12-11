@@ -7,4 +7,39 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-</resources>
+    <color name="tealGreen">#FF0D9488</color>
+
+        <!-- Primary (Royal Blue) -->
+        <color name="md_theme_light_primary">#3F51B5</color>
+        <color name="md_theme_light_onPrimary">#FFFFFF</color>
+        <color name="md_theme_light_primaryContainer">#E8EAF6</color>
+        <color name="md_theme_light_onPrimaryContainer">#212121</color>
+
+        <!-- Secondary (Bubble Purple) -->
+        <color name="md_theme_light_secondary">#8E24AA</color>
+        <color name="md_theme_light_onSecondary">#FFFFFF</color>
+        <color name="md_theme_light_secondaryContainer">#F3E5F5</color>
+        <color name="md_theme_light_onSecondaryContainer">#212121</color>
+
+        <!-- Accent (Aqua) -->
+        <color name="md_theme_light_accent">#26C6DA</color>
+        <color name="md_theme_light_onAccent">#FFFFFF</color>
+
+        <!-- Backgrounds and Surfaces (Soft shades) -->
+        <color name="md_theme_light_background">#F5F6FA</color>
+        <color name="md_theme_light_onBackground">#23272F</color>
+        <color name="md_theme_light_surface">#FFFFFF</color>
+        <color name="md_theme_light_onSurface">#23272F</color>
+        <color name="md_theme_light_surfaceVariant">#F0F1F6</color>
+        <color name="md_theme_light_outline">#CFD8DC</color>
+
+        <!-- Chat Bubbles (Sent/Received) -->
+        <color name="chat_bubble_sent">#E1F5FE</color>
+        <color name="chat_bubble_received">#EDE7F6</color>
+
+        <!-- Error (for warnings, failed messages, etc.) -->
+        <color name="md_theme_light_error">#D32F2F</color>
+        <color name="md_theme_light_onError">#FFFFFF</color>
+        <color name="md_theme_light_errorContainer">#FFCDD2</color>
+        <color name="md_theme_light_onErrorContainer">#212121</color>
+    </resources>

@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.firebase.inappmessaging.display)
     implementation(libs.firebase.messaging)
+    implementation(libs.androidx.lifecycle.process)
 //    implementation(libs.androidx.material3.jvmstubs)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -73,6 +74,7 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation("androidx.compose.material3:material3:1.4.0")
     implementation("androidx.compose.material:material-icons-extended-android")
     implementation("androidx.compose.foundation:foundation")
 
@@ -128,7 +130,9 @@ dependencies {
 //    implementation("io.agora.rtc:full-sdk:4.6.0")
     implementation("io.agora.rtc:full-sdk:4.2.1")
 
-//    implementation("com.zegocloud:zego_uikit_prebuilt_call:+")
+
+
+    implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
 
 }

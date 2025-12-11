@@ -12,6 +12,7 @@ import com.example.chattingappscreens.domain.repository.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -22,10 +23,10 @@ class AuthRepoImpl(
         private var firebaseAuth : FirebaseAuth,
         private var firebaseDatabase : FirebaseDatabase,
         private var firebaseStorage : FirebaseStorage,
-    private var preferenceData: PreferenceData,
-    private var context : Context) : AuthRepository {
-
-
+        private  var firebaseMessaging: FirebaseMessaging,
+        private var preferenceData: PreferenceData,
+        private var context : Context) : AuthRepository
+{
 
     override fun signInWithEmail(
         email: String,
@@ -67,13 +68,17 @@ class AuthRepoImpl(
             val resultState =
                 firebaseAuth.createUserWithEmailAndPassword(user.email, user.password)
                     .await()
+
+
             val uid = resultState.user?.uid ?: throw IllegalArgumentException("Uid Null")
+            val token = firebaseMessaging.token.await()
             val url = saveProfileInStorage(user.profile.toUri())
 
 
             val finalUser = user.copy(
                 uid = uid,
-                profile = url ?: ""
+                profile = url ?: "",
+                fcmToken = token ?: ""
             )
 
             saveUserToRealtimeDB(finalUser)
@@ -86,7 +91,7 @@ class AuthRepoImpl(
                 profile = finalUser.profile,
                 isOnline = finalUser.isOnline,
                 lastSeen = finalUser.lastSeen,
-                fcmToken = finalUser.fcmToken,
+                fcmToken = token ?: "",
             )
             emit(ResultState.Success(uid))                      //success
         } catch (e: Exception) {
@@ -136,6 +141,7 @@ class AuthRepoImpl(
         try {
         val authCredential =  GoogleAuthProvider.getCredential(idToken , null)
         val authResult = firebaseAuth.signInWithCredential(authCredential).await()
+            val token = firebaseMessaging.token.await()
 
         val user = authResult.user ?: throw IllegalArgumentException("User null")
 
@@ -151,7 +157,8 @@ class AuthRepoImpl(
                 name = user.displayName ?: "",
                 phone = user.phoneNumber ?: "",
                 email = user.email ?: "",
-                profile = profile.toString()
+                profile = profile.toString(),
+                fcmToken = token ?: ""
             )
 
             if (isNewUser) {
@@ -164,7 +171,7 @@ class AuthRepoImpl(
                     profile = googleUser.profile,
                     isOnline = true,
                     lastSeen = googleUser.lastSeen,
-                    fcmToken = googleUser.fcmToken,
+                    fcmToken = token ?: "",
                 )
             }
             else{

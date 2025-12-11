@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">chatting app</string>
+    <string name="app_name">OneChat</string>
     <string name="web_client_id">897932769253-qhfvvn91r9bis8bo6gbkf1te1tcpfj9s.apps.googleusercontent.com</string>
     <string name="privacy_policy">https://doc-hosting.flycricket.io/one-chat-privacy-policy/8a16cc67-803d-4366-825e-88db4c0cb015/privacy</string>
     <string name="terms_condition">https://doc-hosting.flycricket.io/one-chat-terms-of-use/5b40e797-0e3d-4978-9e8c-f022d1db73bb/terms</string>
