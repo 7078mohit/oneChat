@@ -46,6 +46,7 @@ import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
+import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
@@ -77,32 +78,24 @@ fun NavGraph(
     val notificationState = chatViewModel.notificationState.collectAsState().value
 
     val userAuthorised = uidFirebase?.isNotEmpty() == true
-    val startDestination = if (userAuthorised) {
+    val startDestination = if(userAuthorised) Route.Home.name else Route.Auth.name
 
-        val permissionOfPostNotification =
-            rememberPermissionState(permission = Manifest.permission.POST_NOTIFICATIONS)
+    val permissionOfPostNotification = rememberPermissionState(
+        permission = Manifest.permission.POST_NOTIFICATIONS
+    )
 
-        LaunchedEffect(Unit) {
-            when (permissionOfPostNotification.status) {
-                is PermissionStatus.Denied -> {
-                    permissionOfPostNotification.launchPermissionRequest()
-                }
-
-                PermissionStatus.Granted -> Log.d("postNotification_Permission", "granted")
-            }
+    LaunchedEffect(userAuthorised) {
+        if (userAuthorised && permissionOfPostNotification.status.isGranted.not()){
+            permissionOfPostNotification.launchPermissionRequest()
         }
-
-        Route.Home.name
-    } else {
-        Route.Auth.name
     }
+
 
     fun defaultEnter() = scaleIn(initialScale = 0.8f, animationSpec = tween(400)) + fadeIn()
     fun defaultExit() = scaleOut(targetScale = 1.2f, animationSpec = tween(400)) + fadeOut()
 
 
     Box(modifier = Modifier.fillMaxSize()) {
-
 
         AnimatedNavHost(navController = navHostController, startDestination = startDestination) {
             //Home Graph
@@ -210,7 +203,14 @@ fun NavGraph(
             }
         }
 
-        LaunchedEffect(usersList) {
+        LaunchedEffect(
+            usersChatsState.value.isSuccess,
+            uidFirebase,
+            OnlineStatusManager.isAppInForeground,
+            usersList
+        ) {
+            if(!userAuthorised) return@LaunchedEffect
+
             // Always process messages, let showNotification decide
             usersList
                 ?.filter { it.unreadCount[uidFirebase ?: ""] ?: 0 >= 1 }
@@ -224,41 +224,6 @@ fun NavGraph(
                 }
         }
 
-//        LaunchedEffect(usersList, OnlineStatusManager.isAppInForeground, ChatStateManager.currentChatId) {
-//           if (!OnlineStatusManager.isAppInForeground) return@LaunchedEffect
-//            if (ChatStateManager.currentChatId != null) return@LaunchedEffect
-//
-//                // ab ye ek hi model pick krega
-//            usersList?.filter { mergedModel ->
-//                val count = mergedModel.unreadCount[uidFirebase ?: ""] ?: 0
-//                count >= 1
-//            }?.maxByOrNull { mergedModel ->
-//                //agr timeStamp hai to latest choose kro, varna bas koi bhi pehla
-//                mergedModel.lastMessageTime ?: 0L
-//            }?.let { model ->
-//                chatViewModel.showNotification(model)
-//            }
-//        }
-
-//        usersList?.forEach { mergedModel ->
-//            Log.d("notificationpopuplistsize", "${usersList.size}")
-//            mergedModel.unreadCount[uidFirebase ?: ""]?.let {
-//
-//                if (!OnlineStatusManager.isAppInForeground) return
-//                if (ChatStateManager.currentChatId == null) {
-//                    //               chatViewModel.popupRead(chatId = mergedModel.chatId, messageId = mergedModel.messageId)
-//                    if (it >= 1) {             // agr ye zero nhi hai
-//                        chatViewModel.showNotification(mergedModel)
-//                        Log.d("notificationShowedTrigger", "called fun bro")
-//                    } else {
-//                        return
-//                    }
-//                } else {
-//                    return
-//                }
-//
-//            }
-//        }
 
         AnimatePopup(
             state = notificationState,

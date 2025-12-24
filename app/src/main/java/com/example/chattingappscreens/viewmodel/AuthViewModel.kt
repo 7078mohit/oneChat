@@ -91,25 +91,6 @@ class AuthViewModel(
         initialValue = ""
     )
 
-    val isUserAuthed: StateFlow<Boolean> = combine(
-        callbackFlow {
-            trySend(getCurrentUserId() != null)
-            val listener = FirebaseAuth.AuthStateListener { auth ->
-                trySend(auth.currentUser != null)
-            }
-            firebaseAuth.addAuthStateListener(listener)
-            awaitClose { firebaseAuth.removeAuthStateListener(listener) }
-        },
-        uidPreference
-    ) { firebaseUid, preferenceUid ->
-
-        firebaseUid && preferenceUid.isNotEmpty()
-    }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = uidPreference.value.isNotEmpty() && firebaseAuth.currentUser != null
-        )
-
 
     private val _signInState = MutableStateFlow(SignInWithEmailState())
     val signInState = _signInState.asStateFlow()
@@ -212,13 +193,26 @@ class AuthViewModel(
     fun logOut() {
         _logOutState.value = LogoutState(isLoading = true, isSuccess = false)
         viewModelScope.launch(Dispatchers.IO) {
-            _logOutState.value = LogoutState(isLoading = false, isSuccess = false)
-            val result = logOutUseCase(uid = getCurrentUserId() ?: "")
-            if (result) {
-                _logOutState.value = LogoutState(isSuccess = true, isLoading = false)
-            } else {
-                _logOutState.value =
-                    LogoutState(isError = "logout failed!", isSuccess = false, isLoading = false)
+            try {
+                val result = logOutUseCase(uid = getCurrentUserId() ?: "")
+                if (result) {
+                    _logOutState.value = LogoutState(isSuccess = true, isLoading = false)
+                    _signingState.value = SigningWithGoogleState()
+                    _signInState.value = SignInWithEmailState()
+                    _signUpState.value = SignUpWithEmailState()
+                } else {
+                    _logOutState.value =
+                        LogoutState(
+                            isError = "logout failed!",
+                            isSuccess = false,
+                            isLoading = false
+                        )
+                }
+            }catch (e: Exception){
+                _logOutState.value = LogoutState(
+                    isError = "Logout failed: ${e.message}",
+                    isLoading = false
+                )
             }
 
         }

@@ -12,12 +12,15 @@ exports.sendNotificationOnMessage = onValueCreated(
     if (!message) return null;
 
     const { receiverId, senderId, content, messageType, isRead, isPopUpShowed } = message;
-    if (!receiverId || !senderId) return null;
+    if (!receiverId || !senderId || receiverId === senderId) return null;  // ⭐ NEW: Self message skip
 
     const db = getDatabase();
+    const path = `/messages/${event.params.chatId}/${event.params.messageId}`;  // ⭐ NEW: Path variable
 
-    // 1) Already shown → skip
-    if (isPopUpShowed === true) {
+    // ⭐ FIX 1: ATOMIC CHECK (Fresh state read)
+    const currentSnap = await db.ref(path).get();
+    const currentMessage = currentSnap.val();
+    if (currentMessage?.isPopUpShowed === true) {
       console.log("Popup already shown → skipping");
       return null;
     }
@@ -80,14 +83,13 @@ exports.sendNotificationOnMessage = onValueCreated(
     };
 
     try {
-      await getMessaging().send(payload);
+      // ⭐ FIX 2: ATOMIC SEND + MARK (Promise.all)
+      await Promise.all([
+        getMessaging().send(payload),
+        db.ref(`${path}/isPopUpShowed`).set(true)
+      ]);
+
       console.log("Notification sent");
-
-      // Mark popup TRUE
-      await db
-        .ref(`/messages/${event.params.chatId}/${event.params.messageId}/isPopUpShowed`)
-        .set(true);
-
       console.log(`Popup marked TRUE for msg → ${event.params.messageId}`);
     } catch (e) {
       console.error("Error sending notif:", e);
