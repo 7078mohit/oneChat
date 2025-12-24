@@ -2,6 +2,8 @@ package com.example.chattingappscreens.presentation.NavGraph
 
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
@@ -35,6 +37,10 @@ fun HomeRootScreen(modifier: Modifier , navHostController: NavHostController){
     val navBackStackEntry = homeNavHostController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry.value?.destination?.route
 
+    fun defaultEnter() = scaleIn(initialScale = 0.8f, animationSpec = tween(400)) + fadeIn()
+    fun defaultExit() = scaleOut(targetScale = 1.2f, animationSpec = tween(400)) + fadeOut()
+
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackBarHostState ) },
         modifier = Modifier.fillMaxSize(),
@@ -57,10 +63,14 @@ fun HomeRootScreen(modifier: Modifier , navHostController: NavHostController){
             navController = homeNavHostController , startDestination = Home.Contact.name , modifier = Modifier.padding(innerpadding)
             ){
             composable(
-               enterTransition = { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )  },
-               exitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
-               popEnterTransition =  { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )} ,
-               popExitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
+                enterTransition = { defaultEnter() },
+                exitTransition = { defaultExit() },
+                popEnterTransition = { defaultEnter() },
+                popExitTransition = { defaultExit() },
+//               enterTransition = { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )  },
+//               exitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
+//               popEnterTransition =  { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )} ,
+//               popExitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
                route = Home.Contact.name){
                 HomeScreen(
                     navhostController = navHostController,
@@ -68,15 +78,25 @@ fun HomeRootScreen(modifier: Modifier , navHostController: NavHostController){
                 )
            }
             composable(
-                enterTransition = { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )  },
-                exitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
-                popEnterTransition =  { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )} ,
-                popExitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
+                enterTransition = { defaultEnter() },
+                exitTransition = { defaultExit() },
+                popEnterTransition = { defaultEnter() },
+                popExitTransition = { defaultExit() },
+//                enterTransition = { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )  },
+//                exitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
+//                popEnterTransition =  { scaleIn( initialScale = 0.8f , animationSpec = tween(400)) +  slideInHorizontally(initialOffsetX ={it}  )} ,
+//                popExitTransition = { scaleOut(targetScale = 1.2f , animationSpec = tween(400)) + slideOutHorizontally(targetOffsetX = { -it }) },
                route = Home.Profile.name){
                 ProfileScreen(navHostController = navHostController , snackBarHostState = snackBarHostState , homeNavHostController = homeNavHostController , modifier = modifier)
            }
 
-            composable(route = Home.EditProfile.name){
+            composable(
+                enterTransition = { defaultEnter() },
+                exitTransition = { defaultExit() },
+                popEnterTransition = { defaultEnter() },
+                popExitTransition = { defaultExit() },
+                route = Home.EditProfile.name){
+
                 EditProfileScreen(snackbarHostState = snackBarHostState , navHostController = homeNavHostController)
             }
 
@@ -89,7 +109,13 @@ fun HomeRootScreen(modifier: Modifier , navHostController: NavHostController){
 //            composable(route = Home.Storage.name){
 //                StorageSettingScreen(homeNavHostController)
 //            }
-            composable(route = Home.Help.name){
+            composable(
+                enterTransition = { defaultEnter() },
+                exitTransition = { defaultExit() },
+                popEnterTransition = { defaultEnter() },
+                popExitTransition = { defaultExit() },
+                route = Home.Help.name){
+
                 HelpScreen(homeNavHostController , rootNavHost = navHostController)
             }
 

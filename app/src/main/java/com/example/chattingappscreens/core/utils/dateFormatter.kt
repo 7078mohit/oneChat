@@ -51,3 +51,8 @@ fun exactTime(time : Long) : String {
     val simpleDateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a" , Locale.getDefault() )
     return simpleDateFormat.format(date)
 }
+fun formatedTime(time : Long) : String {
+    val date = Date(time)
+    val simpleDateFormat = SimpleDateFormat("dd MMM, hh:mm a" , Locale.getDefault() )
+    return simpleDateFormat.format(date)
+}

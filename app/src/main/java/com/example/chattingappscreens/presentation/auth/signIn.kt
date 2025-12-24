@@ -153,7 +153,7 @@ fun SignIn(navHostController: NavHostController, modifier: Modifier , snackBarHo
 //                contentAlignment = Alignment.Center
 //            ) {
 //                CircularProgressIndicator(
-//                    modifier = Modifier.size(32.dp),
+//                    modifier = Modifier.siz e(32.dp),
 //                    strokeWidth = 6.dp,
 //                    trackColor = ProgressIndicatorDefaults.circularDeterminateTrackColor,
 //                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
@@ -171,6 +171,8 @@ fun SignIn(navHostController: NavHostController, modifier: Modifier , snackBarHo
                         inclusive = true
                     }
                 }
+                //added
+                viewModel.resetSignInState()
             }
         }
 

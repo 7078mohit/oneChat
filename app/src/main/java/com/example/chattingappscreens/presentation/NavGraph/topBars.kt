@@ -1,5 +1,6 @@
 package com.example.chattingappscreens.presentation.NavGraph
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +25,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,8 +64,7 @@ fun ChattingTopBar(
     navHostController: NavHostController,
 ) {
     TopAppBar(
-      {
-
+        {
             Row(
                 modifier = Modifier
                     .fillMaxWidth(),
@@ -134,38 +136,6 @@ fun ChattingTopBar(
                         )
                 }
                 Spacer(modifier = Modifier.weight(1f))
-
-//                Row(
-//                    modifier = Modifier.padding(horizontal = 8.dp),
-//                    verticalAlignment = CenterVertically,
-//                ) {
-//                    IconButton(
-//                        onClick = {
-//                            onVoice()
-//                        },
-//                        modifier = Modifier.size(45.dp)
-//                    ) {
-//                        Icon(
-//                            modifier = Modifier.size(28.dp),
-//                            painter = painterResource(R.drawable.voicecall),
-//                            contentDescription = "call",
-//                            tint = MaterialTheme.colorScheme.onSurface,
-//                        )
-//                    }
-//                    IconButton(
-//                        onClick = {
-//                            onVideo()
-//                        },
-//                        modifier = Modifier.size(45.dp)
-//                    ) {
-//                        Icon(
-//                            modifier = Modifier.size(24.dp),
-//                            painter = painterResource(R.drawable.videooutlined),
-//                            contentDescription = "videoCall",
-//                            tint = MaterialTheme.colorScheme.onSurface,
-//                        )
-//                    }
-//                }
             }
         },
     )
@@ -179,7 +149,10 @@ fun SimpleTopBar(navHostController: NavHostController, title: String, isBack: Bo
         navigationIcon = {
             if (isBack) {
                 IconButton(onClick = { navHostController.popBackStack() }) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "back")
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "back"
+                    )
                 }
             }
         },
@@ -204,22 +177,25 @@ fun HomeScreenTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-            brush = Brush.horizontalGradient(
-                listOf(
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),)
-            )
-        ),
+                color = MaterialTheme.colorScheme.primary
+//            brush = Brush.horizontalGradient(
+//                listOf(
+//                    MaterialTheme.colorScheme.secondary,
+//                    MaterialTheme.colorScheme.tertiary)
+//            )
+            ),
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Transparent
         ),
         title = {
             Text(
-                text = "One Chat", color = Color.Black,
-                fontWeight = FontWeight.ExtraBold,
+                text = "One Chat", color = MaterialTheme.colorScheme.surface,
+                fontWeight = FontWeight.Bold,
                 fontSize = 24.sp,
+                //fontFamily = FontFamily.Default
             )
         },
+
         actions = {
             Box(
                 modifier = Modifier
@@ -227,7 +203,7 @@ fun HomeScreenTopBar(
                     .padding(horizontal = 16.dp)
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.surfaceDim,
                         shape = RoundedCornerShape(28.dp)
                     )
                     .clip(RoundedCornerShape(28.dp))
@@ -244,20 +220,19 @@ fun HomeScreenTopBar(
                         text = "Search...",
                         fontSize = 16.sp,
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.outline,
+                        color = MaterialTheme.colorScheme.surfaceDim,
                         modifier = Modifier.padding(start = 10.dp)
                     )
 
                     Spacer(modifier = Modifier.weight(1f))
                     Icon(
-                        tint = MaterialTheme.colorScheme.onSurface,
+                        tint = MaterialTheme.colorScheme.surface,
                         modifier = Modifier
                             .size(30.dp)
                             .padding(end = 8.dp),
                         painter = painterResource(id = R.drawable.search),
                         contentDescription = "Search",
                     )
-
                 }
             }
         }

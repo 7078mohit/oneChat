@@ -1,5 +1,11 @@
 package com.example.chattingappscreens.presentation.chatting
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
@@ -35,6 +42,7 @@ import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -49,17 +57,8 @@ import com.example.chattingappscreens.R
 import com.example.chattingappscreens.core.utils.dateFormatter
 import com.google.common.math.LinearTransformation.vertical
 
-@OptIn(ExperimentalGlideComposeApi::class)
-@Preview(showBackground = true , showSystemUi = true)
 @Composable
-fun CheckingUi() {
-
-
-}
-
-
-@Composable
-fun UserChatShimmer(){
+fun UserChatShimmer() {
     val listOfSides = listOf(
         false,
         false,
@@ -73,25 +72,21 @@ fun UserChatShimmer(){
         false,
         true
     )
-    val shimmerColors = listOf(
-        Color(0xFFE0E0E0),
-        Color(0xFFF5F5F5),
-        Color(0xFFE0E0E0)
-    )
-
-    val brush = Brush.linearGradient(shimmerColors, start = Offset.Zero , end = Offset.Infinite)
-
 
     Column(modifier = Modifier.fillMaxSize()) {
         listOfSides.forEach {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = if (it) Arrangement.Start else Arrangement.End
             ) {
-                Spacer(
-                    modifier = Modifier.width(120.dp).height(40.dp)
-                        .background(brush = brush, shape = RoundedCornerShape(18.dp))
+                ShimmerEffect(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(40.dp),
+                    shape = RoundedCornerShape(18.dp)
                 )
 
             }
@@ -103,32 +98,64 @@ fun UserChatShimmer(){
 
 @Composable
 fun HomeUsersShimmer() {
-    val shimmerColors = listOf(
-        Color(0xFFE0E0E0),
-        Color(0xFFF5F5F5),
-        Color(0xFFE0E0E0)
-    )
 
-    val brush = Brush.linearGradient(shimmerColors, start = Offset.Zero , end = Offset.Infinite)
+    // val brush = Brush.linearGradient(shimmerColors, start = Offset.Zero , end = Offset.Infinite)
 
-    Row(modifier = Modifier.fillMaxWidth()
-        .padding(horizontal = 16.dp , vertical = 8.dp),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = CenterVertically
-    ){
-        Spacer(modifier = Modifier.size(50.dp).background(brush = brush, shape = CircleShape))
-        Spacer(modifier = Modifier.height(18.dp))
-        Column(modifier = Modifier.fillMaxWidth(),
+    ) {
+        ShimmerEffect(modifier = Modifier.size(50.dp), CircleShape)
+        ShimmerEffect(
+            modifier = Modifier.height(18.dp),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.Start) {
-            Spacer(
-                modifier = Modifier.fillMaxWidth().height(18.dp)
-                    .background(brush = brush, shape = RoundedCornerShape(12.dp))
+            horizontalAlignment = Alignment.Start
+        ) {
+            ShimmerEffect(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(18.dp),
+                shape = RoundedCornerShape(12.dp)
+
             )
-            Spacer(
-                modifier = Modifier.width(130.dp).height(18.dp)
-                    .background(brush = brush, shape = RoundedCornerShape(12.dp))
+            ShimmerEffect(
+                modifier = Modifier
+                    .width(130.dp)
+                    .height(18.dp),
+                shape = RoundedCornerShape(12.dp)
             )
 
         }
     }
+}
+
+
+@Composable
+fun ShimmerEffect(modifier: Modifier = Modifier, shape: Shape) {
+    val transition = rememberInfiniteTransition()
+    val translateAnimation by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+    )
+
+    val brush = Brush.linearGradient(
+        colors = listOf(
+            Color.LightGray.copy(alpha = 0.3f),
+            Color.LightGray.copy(alpha = 0.5f),
+            Color.LightGray.copy(alpha = 0.3f)
+        ),
+        start = Offset(translateAnimation - 1000f, 0f),
+        end = Offset(translateAnimation, 0f)
+    )
+    Box(modifier = modifier.background(brush, shape = shape))
 }

@@ -39,6 +39,7 @@ import com.example.chattingappscreens.presentation.auth.SignUp
 import com.example.chattingappscreens.presentation.auth.WelcomeScreen
 import com.example.chattingappscreens.presentation.chatting.ChattingScreen
 import com.example.chattingappscreens.presentation.home.searchScreen
+import com.example.chattingappscreens.viewmodel.AuthViewModel
 import com.example.chattingappscreens.viewmodel.ChatViewModel
 import com.example.chattingappscreens.viewmodel.SharedViewModel
 import com.google.accompanist.navigation.animation.AnimatedNavHost
@@ -60,8 +61,11 @@ import java.net.URLEncoder.encode
 fun NavGraph(
     modifier: Modifier,
     snackBarHostState: SnackbarHostState,
-    firebaseAuth: FirebaseAuth = koinInject()
+    firebaseAuth: FirebaseAuth = koinInject() ,
+    authViewModel: AuthViewModel = koinViewModel()
 ) {
+
+   // val isUserAuthed = authViewModel.isUserAuthed.collectAsState().value
 
     val sharedViewModel: SharedViewModel = koinViewModel()
     val uidFirebase = firebaseAuth.currentUser?.uid
@@ -87,6 +91,7 @@ fun NavGraph(
                 PermissionStatus.Granted -> Log.d("postNotification_Permission", "granted")
             }
         }
+
         Route.Home.name
     } else {
         Route.Auth.name
@@ -103,7 +108,7 @@ fun NavGraph(
             //Home Graph
             navigation(
                 route = Route.Home.name, startDestination = Home.Contact.name
-            ) {
+            ){
                 composable(
                     route = Home.Contact.name
                 ) {
@@ -186,7 +191,11 @@ fun NavGraph(
 
 
                 composable(
-                    popExitTransition = { defaultExit() }, route = Out.Search.name
+                    enterTransition = { defaultEnter() },
+                    exitTransition = { defaultExit() },
+                    popEnterTransition = { defaultEnter() },
+                    popExitTransition = { defaultExit() }
+                    , route = Out.Search.name
                 ) {
                     searchScreen(
                         navHostController = navHostController,
@@ -201,21 +210,35 @@ fun NavGraph(
             }
         }
 
-        LaunchedEffect(usersList, OnlineStatusManager.isAppInForeground, ChatStateManager.currentChatId) {
-           if (!OnlineStatusManager.isAppInForeground) return@LaunchedEffect
-            if (ChatStateManager.currentChatId != null) return@LaunchedEffect
-
-                // ab ye ek hi model pick krega
-            usersList?.filter { mergedModel ->
-                val count = mergedModel.unreadCount[uidFirebase ?: ""] ?: 0
-                count >= 1
-            }?.maxByOrNull { mergedModel ->
-                //agr timeStamp hai to latest choose kro, varna bas koi bhi pehla
-                mergedModel.lastMessageTime ?: 0L
-            }?.let { model ->
-                chatViewModel.showNotification(model)
-            }
+        LaunchedEffect(usersList) {
+            // Always process messages, let showNotification decide
+            usersList
+                ?.filter { it.unreadCount[uidFirebase ?: ""] ?: 0 >= 1 }
+                ?.maxByOrNull { it.lastMessageTime }
+                ?.let { model ->
+                    // showNotification already checks conditions internally
+                    if (OnlineStatusManager.isAppInForeground &&
+                        ChatStateManager.currentChatId == null) {
+                        chatViewModel.showNotification(model)
+                    }
+                }
         }
+
+//        LaunchedEffect(usersList, OnlineStatusManager.isAppInForeground, ChatStateManager.currentChatId) {
+//           if (!OnlineStatusManager.isAppInForeground) return@LaunchedEffect
+//            if (ChatStateManager.currentChatId != null) return@LaunchedEffect
+//
+//                // ab ye ek hi model pick krega
+//            usersList?.filter { mergedModel ->
+//                val count = mergedModel.unreadCount[uidFirebase ?: ""] ?: 0
+//                count >= 1
+//            }?.maxByOrNull { mergedModel ->
+//                //agr timeStamp hai to latest choose kro, varna bas koi bhi pehla
+//                mergedModel.lastMessageTime ?: 0L
+//            }?.let { model ->
+//                chatViewModel.showNotification(model)
+//            }
+//        }
 
 //        usersList?.forEach { mergedModel ->
 //            Log.d("notificationpopuplistsize", "${usersList.size}")

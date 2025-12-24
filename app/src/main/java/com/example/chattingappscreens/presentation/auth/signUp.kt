@@ -204,8 +204,6 @@ fun SignUp(navHostController: NavHostController, modifier: Modifier , snackBarHo
         }
 
 
-
-
         else -> {
 
             Column(

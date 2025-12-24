@@ -15,12 +15,16 @@ import com.example.chattingappscreens.domain.usecase.Auth.UpdateUserProfileUseCa
 import com.example.chattingappscreens.domain.usecase.Auth.UpdateUserUseCase
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+
 
 class AuthViewModel(
     private val signUpWithEmailUseCase: SignUpWithEmailUseCase,
@@ -39,7 +43,6 @@ class AuthViewModel(
 
 
     fun getCurrentUserId() = firebaseAuth.currentUser?.uid
-
 
     val uidPreference = preferenceData.uid.stateIn(
         scope = viewModelScope,
@@ -87,6 +90,25 @@ class AuthViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = ""
     )
+
+    val isUserAuthed: StateFlow<Boolean> = combine(
+        callbackFlow {
+            trySend(getCurrentUserId() != null)
+            val listener = FirebaseAuth.AuthStateListener { auth ->
+                trySend(auth.currentUser != null)
+            }
+            firebaseAuth.addAuthStateListener(listener)
+            awaitClose { firebaseAuth.removeAuthStateListener(listener) }
+        },
+        uidPreference
+    ) { firebaseUid, preferenceUid ->
+
+        firebaseUid && preferenceUid.isNotEmpty()
+    }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = uidPreference.value.isNotEmpty() && firebaseAuth.currentUser != null
+        )
 
 
     private val _signInState = MutableStateFlow(SignInWithEmailState())
@@ -188,41 +210,43 @@ class AuthViewModel(
     }
 
     fun logOut() {
-        _logOutState.value = LogoutState(isLoading = true , isSuccess = false)
+        _logOutState.value = LogoutState(isLoading = true, isSuccess = false)
         viewModelScope.launch(Dispatchers.IO) {
-            _logOutState.value = LogoutState(isLoading = false , isSuccess =false)
+            _logOutState.value = LogoutState(isLoading = false, isSuccess = false)
             val result = logOutUseCase(uid = getCurrentUserId() ?: "")
             if (result) {
-                _logOutState.value = LogoutState(isSuccess = true , isLoading = false)
+                _logOutState.value = LogoutState(isSuccess = true, isLoading = false)
             } else {
-                _logOutState.value = LogoutState(isError = "logout failed!", isSuccess = false , isLoading = false)
+                _logOutState.value =
+                    LogoutState(isError = "logout failed!", isSuccess = false, isLoading = false)
             }
 
         }
     }
 
     fun updateUserProfile(imageUri: String) {
-        _updateUserProfileState.value = UpdateUserProfileState(isLoading = true , isSuccess= false)
+        _updateUserProfileState.value = UpdateUserProfileState(isLoading = true, isSuccess = false)
         viewModelScope.launch {
-              val resultState =  updateUserProfileUseCase(uid = getCurrentUserId() ?: "", imageUri = imageUri)
-                when {
-                   resultState.isSuccess  -> {
-                        _updateUserProfileState.value =
-                            UpdateUserProfileState(isSuccess = true, isError = null , isLoading = false)
-                    }
-
-                    resultState.isFailure -> {
-                        _updateUserProfileState.value =
-                            UpdateUserProfileState(
-                                isLoading = false,
-                                isError = "Error :${resultState.exceptionOrNull()}",
-                                isSuccess = false
-                            )
-                    }
-
+            val resultState =
+                updateUserProfileUseCase(uid = getCurrentUserId() ?: "", imageUri = imageUri)
+            when {
+                resultState.isSuccess -> {
+                    _updateUserProfileState.value =
+                        UpdateUserProfileState(isSuccess = true, isError = null, isLoading = false)
                 }
+
+                resultState.isFailure -> {
+                    _updateUserProfileState.value =
+                        UpdateUserProfileState(
+                            isLoading = false,
+                            isError = "Error :${resultState.exceptionOrNull()}",
+                            isSuccess = false
+                        )
+                }
+
+            }
         }
-        }
+    }
 
 
     fun updateOnlineStatus(isOnline: Boolean) {                       // iske liye koi state ni bnai
@@ -268,8 +292,9 @@ class AuthViewModel(
         }
     }
 
-
-
+    fun resetSignInState() {
+        _signInState.value = SignInWithEmailState()
+    }
 
 }
 
@@ -285,7 +310,7 @@ data class DeleteUserState(
 )
 
 data class UpdateUserProfileState(
-    val isLoading : Boolean? = false,
+    val isLoading: Boolean? = false,
     val isSuccess: Boolean? = false,
     val isError: String? = null
 )

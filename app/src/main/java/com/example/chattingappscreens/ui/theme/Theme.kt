@@ -1,6 +1,7 @@
 package com.example.chattingappscreens.ui.theme
 
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -238,6 +239,7 @@ private val highContrastDarkColorScheme = darkColorScheme(
     surfaceContainerHighest = surfaceContainerHighestDarkHighContrast,
 )
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun ChattingAppScreensTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

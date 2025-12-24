@@ -53,6 +53,12 @@ class ChatViewModel(
     firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
+    override fun onCleared() {
+        super.onCleared()
+        releaseExoPlayer()
+    }
+
+
 
     private var notificationJob : Job? = null
 
@@ -141,12 +147,9 @@ class ChatViewModel(
     }
 
     fun showNotification(model: MergedModel) {
-      try  {
-
-          notificationJob?.cancel()
-
-            Log.d("showNotificationTestA", model.name)
-           notificationJob = viewModelScope.launch(Dispatchers.IO) {
+        notificationJob?.cancel()
+        notificationJob = viewModelScope.launch(Dispatchers.IO) {
+            try  {
                 val isRead = isPopUpShowed(chatId = model.chatId, messageId = model.messageId)
                 if (isRead) return@launch
                //Double-check: agr _notification already isi chat ka hai to skip
@@ -165,9 +168,11 @@ class ChatViewModel(
                     name = model.name,
                     messageId = model.messageId
                 )
+            } catch (e: Exception) {
+                Log.d("showNotification", e.localizedMessage ?: "error")
+            } catch (e: Exception){
+                Log.d("showNotification",e.message,e)
             }
-        }catch (e: Exception){
-            Log.d("showNotification",e.localizedMessage ?: "error")
         }
 
     }

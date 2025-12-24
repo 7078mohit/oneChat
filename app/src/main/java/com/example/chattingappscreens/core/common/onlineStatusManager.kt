@@ -1,10 +1,13 @@
 package com.example.chattingappscreens.core.common
 
+import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.OnLifecycleEvent
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import com.example.chattingappscreens.viewmodel.AuthViewModel
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -12,10 +15,11 @@ import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.koin.androidx.compose.koinViewModel
 
 class OnlineStatusManager(
     private val firebaseDatabase: FirebaseDatabase,
-    private val uid : String
+    private val uid : String,
 ) : DefaultLifecycleObserver {
 
     companion object {
@@ -30,13 +34,20 @@ class OnlineStatusManager(
         isAppInForeground = true
         if (started) return
         started = true
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(this@OnlineStatusManager)
+        }
         attachConnectedListener()
     }
 
     fun stop(){
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(this@OnlineStatusManager)
+        }
         listeners.forEach { connectedRef.removeEventListener(it) }
         listeners.clear()
+        started = false
+        isAppInForeground = false
     }
 
 
@@ -71,8 +82,9 @@ class OnlineStatusManager(
             }
 
             override fun onCancelled(error: DatabaseError) {
-                TODO("Not yet implemented")
+                Log.e("OnlineStatus", "Connected listener cancelled", error.toException())
             }
+
         }
         connectedRef.addValueEventListener(listener)
         listeners.add(listener)

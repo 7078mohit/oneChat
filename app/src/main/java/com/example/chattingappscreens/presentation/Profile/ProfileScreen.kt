@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +69,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -195,7 +198,7 @@ fun ProfileScreenContent(
                 onitemClick = { navHostController.navigate(it.route) })
             MenuCards(menuItems = AppSettingItem, onitemClick = { enableThemeDialog.value = true })
             ShowDropDownMenu(
-                isEnabled = enableThemeDialog.value ,
+                isEnabled = enableThemeDialog.value,
                 onDismissRequest = {
                     enableThemeDialog.value = false
                 },
@@ -232,7 +235,7 @@ fun ProfileScreenContent(
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    MaterialTheme.colorScheme.errorContainer
+                    MaterialTheme.colorScheme.error
                 )
             ) {
                 Row(
@@ -245,7 +248,7 @@ fun ProfileScreenContent(
 
                     Icon(
                         imageVector = Icons.Outlined.Logout,
-                        tint = MaterialTheme.colorScheme.error,
+                        tint = MaterialTheme.colorScheme.errorContainer,
                         contentDescription = "logout",
                         modifier = Modifier
                             .size(28.dp)
@@ -254,7 +257,7 @@ fun ProfileScreenContent(
 
                     Text(
                         modifier = Modifier.widthIn(100.dp, 200.dp),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onError,
                         text = "Logout",
                         fontSize = 14.sp,
                         maxLines = 1,
@@ -496,6 +499,78 @@ fun MenuCards(menuItems: List<ProfileMenuItem>, onitemClick: (ProfileMenuItem) -
 
 }
 
+//
+
+@Composable
+fun ThemeItem(menuItems: List<ProfileMenuItem>, onitemClick: (ProfileMenuItem) -> Unit) {
+//    Card(
+//        modifier = Modifier.fillMaxWidth(),
+//        colors = CardDefaults.cardColors(
+//            MaterialTheme.colorScheme.surfaceContainerHigh
+//        )
+//    ) {
+
+    menuItems.forEachIndexed { index, data ->
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = data.icon,
+                contentDescription = "image",
+                modifier = Modifier
+                    .size(28.dp)
+                //  .clip(CircleShape),
+            )
+            Column(horizontalAlignment = Alignment.Start) {
+                Text(
+                    modifier = Modifier.widthIn(100.dp, 200.dp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    text = data.title,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.titleSmall,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (data.description != null) {
+                    Text(
+                        text = data.description,
+                        fontSize = 8.sp,
+                        // color manage when backend connect
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            IconButton(onClick = {
+                onitemClick(data)
+            }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    tint = MaterialTheme.colorScheme.outline,
+                    contentDescription = "Go",
+                )
+            }
+        }
+        if (index != menuItems.lastIndex) {
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp), thickness = 0.8.dp
+            )
+        }
+    }
+
+
+}
+
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -526,8 +601,9 @@ fun ShowDialogue(
             dismissButton = {
                 Button(
                     onClick = onCancel,
-                    modifier = Modifier.fillMaxWidth(1f)
-                ) { Text("Cancel") }
+                    modifier = Modifier.fillMaxWidth(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) { Text("Cancel", color = MaterialTheme.colorScheme.primary) }
             },
             title = {
                 Text(
@@ -556,13 +632,30 @@ fun ShowDropDownMenu(
     onDismissRequest: () -> Unit,
     onLightMode: () -> Unit,
     onDarkMode: () -> Unit,
-){
-    DropdownMenu(
-        expanded = isEnabled,
-        onDismissRequest = onDismissRequest,
-        modifier = Modifier.wrapContentSize().background(color = Color.Transparent, shape = RoundedCornerShape(24.dp)),
+) {
+    Box(
+        modifier = Modifier
+            .background(color = Color.Transparent, shape = RoundedCornerShape(16.dp))
+            .offset(x = 18.dp, y = (-2).dp)
+//        ⭐ Exact niche adjust
     ){
-        MenuCards(
+                DropdownMenu (
+                expanded = isEnabled,
+        onDismissRequest = onDismissRequest,
+//        modifier = Modifier
+//            .wrapContentSize()
+//            .background(
+//                color = MaterialTheme.colorScheme.surface,
+//                shape = RoundedCornerShape(16.dp)
+//            )
+//            .padding(8.dp),
+        modifier = Modifier
+            .wrapContentSize()
+            .background(color = Color.Transparent, shape = RoundedCornerShape(16.dp))
+            .align(Alignment.BottomStart)  // ⭐ Perfect position!
+
+    ) {
+        ThemeItem(
             menuItems = ThemeMenuItem,
             onitemClick = { item ->
                 when {
@@ -578,5 +671,7 @@ fun ShowDropDownMenu(
 
         )
     }
+
+}
 
 }

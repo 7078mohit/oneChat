@@ -5,4 +5,6 @@
     <string name="terms_condition">https://doc-hosting.flycricket.io/one-chat-terms-of-use/5b40e797-0e3d-4978-9e8c-f022d1db73bb/terms</string>
     <string name="appSign">f7ffb589dcafd790aa6f487f351df3e0ab09d9a2ac37ddce645f2a2d5bea7663</string>
     <string name="appId">1216625520</string>
+    <string name="loading">Loading…</string>
+    <string name="sign_in">Sign In</string>
 </resources>

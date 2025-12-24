@@ -1,11 +1,14 @@
 package com.example.chattingappscreens.data.repository
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import com.example.chattingappscreens.ResultState
+import com.example.chattingappscreens.core.di.MyApplication
 import com.example.chattingappscreens.core.preference.PreferenceData
+import com.example.chattingappscreens.core.preference.dataStore
 import com.example.chattingappscreens.core.utils.compressedImageWithUri
 import com.example.chattingappscreens.data.modell.UserModel
 import com.example.chattingappscreens.domain.repository.AuthRepository
@@ -20,13 +23,13 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 class AuthRepoImpl(
-        private var firebaseAuth : FirebaseAuth,
-        private var firebaseDatabase : FirebaseDatabase,
-        private var firebaseStorage : FirebaseStorage,
-        private  var firebaseMessaging: FirebaseMessaging,
-        private var preferenceData: PreferenceData,
-        private var context : Context) : AuthRepository
-{
+    private var firebaseAuth: FirebaseAuth,
+    private var firebaseDatabase: FirebaseDatabase,
+    private var firebaseStorage: FirebaseStorage,
+    private var firebaseMessaging: FirebaseMessaging,
+    private var preferenceData: PreferenceData,
+    private var context: Context,
+ ) : AuthRepository {
 
     override fun signInWithEmail(
         email: String,
@@ -38,8 +41,9 @@ class AuthRepoImpl(
             val uid = result.user?.uid ?: throw Exception("User Id null!")
 
             // Save to preferencee
-            val user = getUserFromDB(uid)                       // manually find for save in datastorePrefernce
-            if (user != null){
+            val user =
+                getUserFromDB(uid)                       // manually find for save in datastorePrefernce
+            if (user != null) {
                 preferenceData.saveUser(
                     uid = user.uid,
                     name = user.name,
@@ -53,6 +57,7 @@ class AuthRepoImpl(
             }
 
             emit(ResultState.Success(uid))
+            MyApplication.getInstance().startOnlineStatus(user?.uid ?: "")
         } catch (e: Exception) {
             emit(ResultState.Error("Failed :${e.localizedMessage}"))
         }
@@ -71,7 +76,7 @@ class AuthRepoImpl(
 
 
             val uid = resultState.user?.uid ?: throw IllegalArgumentException("Uid Null")
-            val token = firebaseMessaging.token.await()
+            val token = try { firebaseMessaging.token.await() }catch(e: Exception){ ""}
             val url = saveProfileInStorage(user.profile.toUri())
 
 
@@ -93,7 +98,8 @@ class AuthRepoImpl(
                 lastSeen = finalUser.lastSeen,
                 fcmToken = token ?: "",
             )
-            emit(ResultState.Success(uid))                      //success
+            emit(ResultState.Success(uid)) //success
+            MyApplication.getInstance().startOnlineStatus(finalUser.uid)
         } catch (e: Exception) {
             emit(ResultState.Error(e.localizedMessage ?: "SignUp Failed"))
         }
@@ -115,40 +121,41 @@ class AuthRepoImpl(
     }
 
     private suspend fun saveProfileInStorage(uri: Uri): String? {
-       return  try {
+        return try {
 
-           val compressedUri = compressedImageWithUri(context = context  , uri = uri)  ?: throw IllegalArgumentException("Uri null Compressed Error")
+            val compressedUri = compressedImageWithUri(context = context, uri = uri)
+                ?: throw IllegalArgumentException("Uri null Compressed Error")
 
             val path = "Image_${System.currentTimeMillis()}_.jpg"
             val imageReference = firebaseStorage.getReference("Profile").child(path)
-            imageReference.putFile(compressedUri ).await()
-           val url = imageReference.downloadUrl.await()
+            imageReference.putFile(compressedUri).await()
+            val url = imageReference.downloadUrl.await()
 
-           Log.d("upload image success" , "$url")
+            Log.d("upload image success", "$url")
 
-           url.toString()
-       } catch (e : Exception){
-           Log.d("upload image Failed" ,"uploadfailed", e)
+            url.toString()
+        } catch (e: Exception) {
+            Log.d("upload image Failed", "uploadfailed", e)
             throw e
 
         }
     }
 
 
-    override fun loginWithGoogle(idToken : String): Flow<ResultState<String>> = flow {
+    override fun loginWithGoogle(idToken: String): Flow<ResultState<String>> = flow {
 
         emit(ResultState.Loading)
         try {
-        val authCredential =  GoogleAuthProvider.getCredential(idToken , null)
-        val authResult = firebaseAuth.signInWithCredential(authCredential).await()
+            val authCredential = GoogleAuthProvider.getCredential(idToken, null)
+            val authResult = firebaseAuth.signInWithCredential(authCredential).await()
             val token = firebaseMessaging.token.await()
 
-        val user = authResult.user ?: throw IllegalArgumentException("User null")
+            val user = authResult.user ?: throw IllegalArgumentException("User null")
 
             val isNewUser = authResult.additionalUserInfo?.isNewUser ?: false
 
             val profile = user.photoUrl
-            Log.d("profile" , profile.toString())
+            Log.d("profile", profile.toString())
 
 
             /// Google se user mil gaya
@@ -173,9 +180,8 @@ class AuthRepoImpl(
                     lastSeen = googleUser.lastSeen,
                     fcmToken = token ?: "",
                 )
-            }
-            else{
-               val addedUser = getUserFromDB(user.uid)
+            } else {
+                val addedUser = getUserFromDB(user.uid)
 
                 preferenceData.saveUser(
                     uid = addedUser?.uid ?: "",
@@ -189,37 +195,34 @@ class AuthRepoImpl(
             }
 
 
-
-
             emit(ResultState.Success(user.uid))
+            MyApplication.getInstance().startOnlineStatus(user.uid)
 
-        }
-        catch (e : Exception){
+        } catch (e: Exception) {
             emit(ResultState.Error(e.localizedMessage ?: "Login with google failed"))
         }
     }
 
     override suspend fun logOut(uid: String): Boolean {
-      return  try {
-        val statusResult = updateOnlineStatus(isOnline = false , uid = uid)
-        if (statusResult){
+        return try {
+            updateOnlineStatus(isOnline = false, uid = uid)
             firebaseAuth.signOut()
             preferenceData.deleteUser()
+            MyApplication.getInstance().stopOnlineStatus()
             true
-        }else{
+        } catch (e: Exception) {
+            firebaseAuth.signOut()
+            preferenceData.deleteUser()
+            MyApplication.getInstance().stopOnlineStatus()
             false
         }
     }
-        catch (e: Exception){
-        false
-        }
-    }
 
 
-    override suspend fun  updateOnlineStatus(isOnline : Boolean, uid: String) : Boolean {
-       return try {
+    override suspend fun updateOnlineStatus(isOnline: Boolean, uid: String): Boolean {
+        return try {
 
-           val currentTime  = System.currentTimeMillis()
+            val currentTime = System.currentTimeMillis()
 
             val map = mapOf(
                 "isOnline" to isOnline,
@@ -230,94 +233,89 @@ class AuthRepoImpl(
                 .child(uid)
                 .updateChildren(map)
                 .await()
-           preferenceData.onlineLastSeen(isOnline = isOnline , lastSeen = currentTime )
+            preferenceData.onlineLastSeen(isOnline = isOnline, lastSeen = currentTime)
 
             true
-        }catch (e : Exception){
+        } catch (e: Exception) {
             false
         }
 
     }
 
-    suspend fun getUserFromDB(uid : String) : UserModel? {
-      return  try {
-          val snapshot = firebaseDatabase.getReference("User").child(uid).get().await()
-          // val x = snapshot.value  as Map<String , Any>
+    suspend fun getUserFromDB(uid: String): UserModel? {
+        return try {
+            val snapshot = firebaseDatabase.getReference("User").child(uid).get().await()
+            // val x = snapshot.value  as Map<String , Any>
 
-          if (snapshot.exists()) {
-              val map = snapshot.value as Map<String, Any>
-              UserModel.mapToUser(map)
-          } else {
-             null
-          }
-      }
-        catch (e: Exception){
-          throw  e
+            if (snapshot.exists()) {
+                val map = snapshot.value as Map<String, Any>
+                UserModel.mapToUser(map)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            throw e
         }
     }
 
-   override suspend fun updateUserProfile(uid : String, imageUri : String)  : Result<Boolean> {
-       return try {
-           val imageUrl = saveProfileInStorage(uri = imageUri.toUri())
+    override suspend fun updateUserProfile(uid: String, imageUri: String): Result<Boolean> {
+        return try {
+            val imageUrl = saveProfileInStorage(uri = imageUri.toUri())
             imageUrl?.let {
-        firebaseDatabase
-            .getReference("User")
-            .child(uid)
-            .child("profile")
-            .setValue(imageUrl)
-            .await()
-            preferenceData.updateProfile(imageUrl = imageUri)
+                firebaseDatabase
+                    .getReference("User")
+                    .child(uid)
+                    .child("profile")
+                    .setValue(imageUrl)
+                    .await()
+                preferenceData.updateProfile(imageUrl = imageUri)
             }
-           Result.success(true)
-    }
-        catch (e : Exception){
+            Result.success(true)
+        } catch (e: Exception) {
             Result.failure(e)
         }
-   }
+    }
 
 
-
-   override suspend fun deleteUser(uid: String) : Boolean{
-      return  try {
-        firebaseAuth.currentUser?.delete()?.await()
-        firebaseDatabase.getReference("User").child(uid).removeValue().await()
-        firebaseStorage.getReference("Image")
+    override suspend fun deleteUser(uid: String): Boolean {
+        return try {
+            firebaseAuth.currentUser?.delete()?.await()
+            firebaseDatabase.getReference("User").child(uid).removeValue().await()
+            firebaseStorage.getReference("Image")
             true
-    }catch (e: Exception){
-        false
-    }
+        } catch (e: Exception) {
+            false
+        }
     }
 
 
-    override suspend fun updateUser(uid : String ,name : String , phoneNo : String) : Result<String>{
-       return try {
+    override suspend fun updateUser(uid: String, name: String, phoneNo: String): Result<String> {
+        return try {
 
 //           val imageUrl = saveProfileInStorage(uri = user.profile.toUri())
 
-           val map = mapOf(
-               "name" to name,
-               "phone" to phoneNo,
-           )
+            val map = mapOf(
+                "name" to name,
+                "phone" to phoneNo,
+            )
 
-        firebaseDatabase.getReference("User").child(uid)
-            .updateChildren(map)
-            .await()
+            firebaseDatabase.getReference("User").child(uid)
+                .updateChildren(map)
+                .await()
 
 
-           // isme pura hi pas kr diya nahi to preference me fun add krna pdta one more
-           preferenceData.updateUser(
-               uid = uid,
-               name = name,
-               phone = phoneNo,
-           )
+            // isme pura hi pas kr diya nahi to preference me fun add krna pdta one more
+            preferenceData.updateUser(
+                uid = uid,
+                name = name,
+                phone = phoneNo,
+            )
 
             Result.success("User Updated")
-    }catch (e: Exception){
+        } catch (e: Exception) {
             Result.failure(e)
+        }
     }
-    }
-
-
 
 
 }

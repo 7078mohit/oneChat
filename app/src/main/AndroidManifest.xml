@@ -33,7 +33,6 @@
 
 
     <application
-        android:windowSoftInputMode="adjustResize"
         android:allowBackup="true"
         android:name=".core.di.MyApplication"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -45,8 +44,8 @@
         android:theme="@style/Theme.ChattingAppScreens">
         <activity
             android:name=".MainActivity"
-
             android:exported="true"
+            android:windowSoftInputMode="adjustResize"
             android:label="@string/app_name"
             android:theme="@style/Theme.ChattingAppScreens">
             <intent-filter>

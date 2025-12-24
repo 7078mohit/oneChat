@@ -31,6 +31,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -66,6 +67,7 @@ dependencies {
     implementation(libs.firebase.inappmessaging.display)
     implementation(libs.firebase.messaging)
     implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.ui.text.google.fonts)
 //    implementation(libs.androidx.material3.jvmstubs)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -83,19 +85,10 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
 
     implementation("com.github.bumptech.glide:compose:1.0.0-beta08")
-
-
-//    implementation("com.arthenica:mobile-ffmpeg-min-gpl:4.4.LTS")
-//    implementation("com.arthenica:mobile-ffmpeg-full:4.4")
-//    implementation("com.arthenica:ffmpeg-kit-full:5.1")
-//
-   //   implementation("com.github.AbedElazizShe:LightCompressor:1.3.3")
-
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
 
     implementation("androidx.datastore:datastore-preferences:1.1.7")
-
     // Import the BoM for the Firebase platform
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
 
@@ -120,19 +113,13 @@ dependencies {
 
     implementation ("androidx.camera:camera-view:${camerax_version}")
     implementation ("androidx.camera:camera-extensions:${camerax_version}")
-
-//
-//    implementation("com.github.ZEGOCLOUD:zego_uikit_prebuilt_call_android:3.26.0")
-//
-//    implementation("com.zegocloud.uikit:prebuilt-call:")
-
-
 //    implementation("io.agora.rtc:full-sdk:4.6.0")
     implementation("io.agora.rtc:full-sdk:4.2.1")
 
 
 
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
-
+    testImplementation(libs.junit)
+    implementation(kotlin("test"))
 
 }

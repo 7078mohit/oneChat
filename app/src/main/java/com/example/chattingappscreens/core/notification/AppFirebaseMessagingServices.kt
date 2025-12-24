@@ -281,10 +281,10 @@ class AppFirebaseMessagingServices : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         val uid = firebaseAuth.currentUser?.uid ?: ""
-        val ref = firebaseDatabase.getReference("User").child(uid)
-        CoroutineScope(Dispatchers.IO).launch {
-            ref.child("fcmToken").setValue(token)
-        }
+            val ref = firebaseDatabase.getReference("User").child(uid)
+            CoroutineScope(Dispatchers.IO).launch {
+                ref.child("fcmToken").setValue(token)
+            }
     }
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)

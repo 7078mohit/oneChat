@@ -141,7 +141,7 @@ fun HomeScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxWidth().background(color = Color.Transparent),
-        ) {
+        ){
 
             when {
                 chatState.isLoading -> {
@@ -149,10 +149,11 @@ fun HomeScreen(
                         HomeUsersShimmer()
                     }
                 }
-
-
                 chatState.isSuccess?.isNotEmpty() == true -> {
-                    items(chatState.isSuccess ?: emptyList()) { mergedModel ->
+                    items(
+                        items = chatState.isSuccess ?: emptyList(),
+                        key = {it.chatId}
+                        ) { mergedModel ->
                         UserCard(
                             onClick = {
                                 navhostController.navigate(
@@ -333,7 +334,7 @@ fun UserCard(
                                     .size(height = 22.dp, width = 25.dp)
                                     .background(
                                         color = MaterialTheme.colorScheme.error,
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(16.dp)
                                     )
                                     .clip(RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
@@ -341,7 +342,7 @@ fun UserCard(
                             ) {
                                 Text(
                                     text = if (counts <= 3L) counts.toInt().toString() else "4+",
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.surface,
                                     fontSize = 12.sp
                                 )
                             }
